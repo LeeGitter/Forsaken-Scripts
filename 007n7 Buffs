@@ -1,0 +1,99 @@
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local ingameFolder = workspace:WaitForChild("Map"):WaitForChild("Ingame")
+local hitboxFolder = workspace:WaitForChild("Hitboxes")
+
+-- Make clones invisible constantly
+spawn(function()
+    while true do
+        for _, model in pairs(ingameFolder:GetDescendants()) do
+            if model:IsA("Model") and model.Name == "007n7" then
+                for _, part in pairs(model:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.LocalTransparencyModifier = 1
+                    end
+                end
+            end
+        end
+        wait(0.5)
+    end
+end)
+
+local dodgeActive = false
+local speedSpoofActive = false
+
+local TELEPORT_DISTANCE = 10
+local VELOCITY_MAGNITUDE = 50
+local PROXIMITY_THRESHOLD = 5
+local DODGE_DURATION = 4 -- seconds
+local SPEED_SPOOF_SPEED = 12
+local SPEED_SPOOF_DURATION = 6 -- seconds
+
+local function getNearestHitbox()
+    local nearest, minDist = nil, math.huge
+    for _, part in ipairs(hitboxFolder:GetChildren()) do
+        if part:IsA("BasePart") then
+            local dist = (part.Position - hrp.Position).Magnitude
+            if dist < minDist then
+                minDist = dist
+                nearest = part
+            end
+        end
+    end
+    return nearest, minDist
+end
+
+RunService.RenderStepped:Connect(function()
+    if dodgeActive then
+        -- Dodge velocity spoofing
+        local originalVelocity = hrp.Velocity
+        hrp.Velocity = hrp.CFrame.LookVector * VELOCITY_MAGNITUDE
+
+        -- Reactive teleport near hitboxes
+        local hitbox, distance = getNearestHitbox()
+        if hitbox and distance < PROXIMITY_THRESHOLD then
+            local direction = (hrp.Position - hitbox.Position).Unit
+            hrp.CFrame = CFrame.new(hitbox.Position + direction * TELEPORT_DISTANCE)
+        end
+
+        -- Restore velocity (optional, comment if needed)
+        hrp.Velocity = originalVelocity
+    end
+
+    if speedSpoofActive then
+        -- Spoof speed 12 by overriding WalkSpeed constantly
+        humanoid.WalkSpeed = SPEED_SPOOF_SPEED
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+
+    if input.KeyCode == Enum.KeyCode.Q and not dodgeActive then
+        dodgeActive = true
+        task.delay(DODGE_DURATION, function()
+            dodgeActive = false
+        end)
+
+    elseif input.KeyCode == Enum.KeyCode.E and not speedSpoofActive then
+        speedSpoofActive = true
+        task.spawn(function()
+            local startTime = tick()
+            while tick() - startTime < SPEED_SPOOF_DURATION do
+                if not humanoid or humanoid.Health <= 0 then break end
+                humanoid.WalkSpeed = SPEED_SPOOF_SPEED
+                task.wait(0.1)
+            end
+            speedSpoofActive = false
+            humanoid.WalkSpeed = 22 -- reset to default or your preferred walk speed
+        end)
+    end
+end)
