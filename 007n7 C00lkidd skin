@@ -1,0 +1,120 @@
+local scaleFactor = 0.8
+
+local survivorsFolder = workspace:WaitForChild("Players"):WaitForChild("Survivors")
+local model = survivorsFolder:WaitForChild("007n7")
+
+-- 🧹 Remove all accessories
+for _, accessory in pairs(model:GetChildren()) do
+    if accessory:IsA("Accessory") then
+        accessory:Destroy()
+    end
+end
+
+-- 🎨 Recolor all BaseParts
+for _, part in pairs(model:GetDescendants()) do
+    if part:IsA("BasePart") then
+        part.Material = Enum.Material.Plastic
+        part.Color = Color3.new(1, 0, 0)
+    end
+end
+
+-- 🗑️ Delete "TheThing"
+local theThing = model:FindFirstChild("TheThing")
+if theThing then theThing:Destroy() end
+
+-- 🧠 Reference torso for scaling
+local torso = model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso") or model:FindFirstChild("HumanoidRootPart")
+assert(torso, "No torso found to scale around!")
+local torsoPos = torso.Position
+
+-- 🔧 Scale CFrame helper
+local function scaleCFrame(cf, scale)
+    local pos = cf.Position * scale
+    local rot = cf - cf.Position
+    return CFrame.new(pos) * rot
+end
+
+-- 📏 Scale parts and reposition
+for _, part in pairs(model:GetDescendants()) do
+    if part:IsA("BasePart") then
+        part.Size = part.Size * scaleFactor
+        local offset = part.Position - torsoPos
+        part.Position = torsoPos + offset * scaleFactor
+    end
+end
+
+-- 🔩 Adjust welds
+for _, weld in pairs(model:GetDescendants()) do
+    if weld:IsA("Weld") or weld:IsA("ManualWeld") then
+        if weld.C0 then weld.C0 = scaleCFrame(weld.C0, scaleFactor) end
+        if weld.C1 then weld.C1 = scaleCFrame(weld.C1, scaleFactor) end
+    end
+end
+
+-- 🦿 Adjust humanoid height
+local humanoid = model:FindFirstChildOfClass("Humanoid")
+if humanoid then
+    humanoid.HipHeight = (humanoid.HipHeight or 2) * scaleFactor
+end
+
+-- 🔗 Weld helper
+local function weldPart(part, target, offset)
+    local weld = Instance.new("Weld")
+    weld.Part0 = part
+    weld.Part1 = target
+    weld.C0 = offset or CFrame.new()
+    weld.Parent = part
+end
+
+-- 🎩 Create MeshPart accessory
+local function createMeshAccessory(name, meshId, textureId, size, targetPart, positionOffset)
+    local meshPart = Instance.new("MeshPart")
+    meshPart.Name = name
+    meshPart.MeshId = "rbxassetid://" .. meshId
+    meshPart.TextureID = "rbxassetid://" .. textureId
+    meshPart.Size = size * scaleFactor
+    meshPart.Anchored = false
+    meshPart.CanCollide = false
+    meshPart.Material = Enum.Material.SmoothPlastic
+    meshPart.Parent = model
+
+    local rotation = CFrame.Angles(0, math.rad(180), 0)
+    local offset = CFrame.new(positionOffset * scaleFactor) * rotation
+    meshPart.CFrame = targetPart.CFrame * offset
+    weldPart(meshPart, targetPart, offset)
+end
+
+-- 🧠 Target body parts
+local head = model:FindFirstChild("Head")
+local waist = model:FindFirstChild("Waist") or torso
+
+-- 🧢 Head accessories
+if head then
+    createMeshAccessory("Horns", "98088657820960", "92469857713123", Vector3.new(1, 1, 1), head, Vector3.new(0, -0.6, -0.5))
+    createMeshAccessory("PropellerHat", "71262166071054", "119497046100016", Vector3.new(0.85, 0.85, 0.85), head, Vector3.new(0, -0.7, 0))
+end
+
+-- 🩳 Waist accessory
+if waist then
+    createMeshAccessory("Tail", "127003852201054", "76804517555822", Vector3.new(1.5, 1, 1), waist, Vector3.new(0, 1.5, 1))
+end
+
+-- 🌀 Welded floating decal part
+if torso then
+    local floatPart = Instance.new("Part")
+    floatPart.Name = "FloatingDecal"
+    floatPart.Size = Vector3.new(2, 2, 0.2) * scaleFactor
+    floatPart.Anchored = false
+    floatPart.CanCollide = false
+    floatPart.Material = Enum.Material.SmoothPlastic
+    floatPart.Transparency = 1
+    floatPart.Color = torso.Color
+    floatPart.Parent = model
+
+    local decal = Instance.new("Decal")
+    decal.Texture = "rbxassetid://84715714158926"
+    decal.Face = Enum.NormalId.Front
+    decal.Parent = floatPart
+
+    weldPart(floatPart, torso, CFrame.new(0, -0.4, 0.5 * scaleFactor))
+end
