@@ -1,107 +1,121 @@
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
+local character, humanoid, hrp, animator
+local prepTrack, dashTrack, endTrack
 
--- Character and components refs
-local character, humanoid, hrp
+local PREP_ANIM_ID = 98456918873918
+local DASH_ANIM_ID = 106776364623742
+local END_ANIM_ID = 18885940850
+
+local DASH_DISTANCE = 40
+local PREP_DURATION = 0.55
+local DASH_DURATION = 0.5
+
+local ASCEND_AMPLITUDE = 1
+local ASCEND_FREQUENCY = 4
 
 local function setupCharacter()
     character = player.Character or player.CharacterAdded:Wait()
     humanoid = character:WaitForChild("Humanoid")
     hrp = character:WaitForChild("HumanoidRootPart")
+
+    animator = humanoid:FindFirstChildOfClass("Animator")
+    if not animator then
+        animator = Instance.new("Animator")
+        animator.Parent = humanoid
+    end
+
+    local function loadAnimation(id)
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://" .. id
+        return animator:LoadAnimation(anim)
+    end
+
+    prepTrack = loadAnimation(PREP_ANIM_ID)
+    dashTrack = loadAnimation(DASH_ANIM_ID)
+    endTrack = loadAnimation(END_ANIM_ID)
 end
+
 setupCharacter()
 player.CharacterAdded:Connect(setupCharacter)
 
-local ingameFolder = workspace:WaitForChild("Map"):WaitForChild("Ingame")
-local hitboxFolder = workspace:WaitForChild("Hitboxes")
+local function easeOutCubic(t)
+    return 1 - (1 - t)^3
+end
 
--- Constantly make clones invisible
-spawn(function()
-    while true do
-        for _, model in pairs(ingameFolder:GetDescendants()) do
-            if model:IsA("Model") and model.Name == "007n7" then
-                for _, part in pairs(model:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.LocalTransparencyModifier = 1
-                    end
-                end
+local dashActive = false
+
+local function playEndAnimation()
+    if endTrack then
+        endTrack:Play()
+    end
+end
+
+local function dashSequence()
+    if not hrp or not humanoid then return end
+    if dashActive then return end
+    if prepTrack.IsPlaying or dashTrack.IsPlaying then return end
+
+    dashActive = true
+
+    prepTrack:Play()
+    task.wait(PREP_DURATION)
+    prepTrack:Stop()
+
+    dashTrack:Play()
+
+    local startCFrame = hrp.CFrame
+    local forwardVector = startCFrame.LookVector
+    local elapsed = 0
+    local lastPosition = hrp.Position
+
+    local connection
+    connection = RunService.Heartbeat:Connect(function(dt)
+        elapsed = elapsed + dt
+        if elapsed > DASH_DURATION then
+            dashTrack:Stop()
+            connection:Disconnect()
+            playEndAnimation()
+            dashActive = false
+            return
+        end
+
+        local progress = elapsed / DASH_DURATION
+        local easedProgress = easeOutCubic(progress)
+
+        local targetPosition = startCFrame.Position + forwardVector * DASH_DISTANCE * easedProgress
+        local verticalOffset = math.sin(elapsed / DASH_DURATION * math.pi * ASCEND_FREQUENCY) * ASCEND_AMPLITUDE * (1 - progress)
+        local newPosition = Vector3.new(targetPosition.X, startCFrame.Y + verticalOffset, targetPosition.Z)
+
+        -- Collision check
+        local direction = newPosition - lastPosition
+        local dist = direction.Magnitude
+        if dist > 0 then
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterDescendantsInstances = {character}
+            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+            local rayResult = workspace:Raycast(lastPosition, direction.Unit * dist, raycastParams)
+
+            if rayResult and rayResult.Instance and rayResult.Instance.CanCollide then
+                dashTrack:Stop()
+                connection:Disconnect()
+                playEndAnimation()
+                dashActive = false
+                return
             end
         end
-        wait(0.5)
-    end
-end)
 
-local dodgeActive = false
-local speedSpoofActive = false
-
-local TELEPORT_DISTANCE = 15 -- increased teleport distance
-local VELOCITY_MAGNITUDE = 50
-local PROXIMITY_THRESHOLD = 5
-local DODGE_DURATION = 4
-local SPEED_SPOOF_SPEED = 12
-local SPEED_SPOOF_DURATION = 6
-
--- Teleport loop running every 0.01s
-spawn(function()
-    while true do
-        if dodgeActive and hrp and hrp.Parent then
-            local nearest, minDist = nil, math.huge
-            for _, part in ipairs(hitboxFolder:GetChildren()) do
-                if part:IsA("BasePart") then
-                    local dist = (part.Position - hrp.Position).Magnitude
-                    if dist < minDist then
-                        minDist = dist
-                        nearest = part
-                    end
-                end
-            end
-
-            if nearest and minDist < PROXIMITY_THRESHOLD then
-                local dir = (hrp.Position - nearest.Position).Unit
-                hrp.CFrame = CFrame.new(nearest.Position + dir * TELEPORT_DISTANCE)
-            end
-        end
-        wait(0.01)
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    if dodgeActive and hrp and hrp.Parent then
-        hrp.Velocity = hrp.CFrame.LookVector * VELOCITY_MAGNITUDE
-    end
-
-    if speedSpoofActive and humanoid and humanoid.Parent then
-        humanoid.WalkSpeed = SPEED_SPOOF_SPEED
-    end
-end)
+        hrp.CFrame = CFrame.new(newPosition, newPosition + forwardVector)
+        lastPosition = newPosition
+    end)
+end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
-    if not humanoid or not hrp then return end
-
-    if input.KeyCode == Enum.KeyCode.Q and not dodgeActive then
-        dodgeActive = true
-        task.delay(DODGE_DURATION, function()
-            dodgeActive = false
-        end)
-
-    elseif input.KeyCode == Enum.KeyCode.E and not speedSpoofActive then
-        speedSpoofActive = true
-        task.spawn(function()
-            local start = tick()
-            while tick() - start < SPEED_SPOOF_DURATION do
-                if not humanoid or humanoid.Health <= 0 then break end
-                humanoid.WalkSpeed = SPEED_SPOOF_SPEED
-                task.wait(0.1)
-            end
-            speedSpoofActive = false
-            if humanoid and humanoid.Parent then
-                humanoid.WalkSpeed = 22 -- reset default speed here
-            end
-        end)
+    if input.KeyCode == Enum.KeyCode.Q then
+        dashSequence()
     end
 end)
