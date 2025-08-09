@@ -1,0 +1,46 @@
+-- Load both scripts
+loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/007n7%20C00lkidd%20skin", true))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/007n7%20Buffs", true))()
+
+-- Outline toggle setup
+local UserInputService = game:GetService("UserInputService")
+
+local killersFolder = workspace:WaitForChild("Players"):WaitForChild("Killers")
+
+local toggled = false
+local highlights = {}
+
+local function addHighlights()
+    for _, killer in pairs(killersFolder:GetChildren()) do
+        if killer:IsA("Model") then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "KillerHighlight"
+            highlight.Adornee = killer
+            highlight.OutlineColor = Color3.new(1, 0, 0) -- Red
+            highlight.FillTransparency = 1
+            highlight.Parent = killer
+            table.insert(highlights, highlight)
+        end
+    end
+end
+
+local function removeHighlights()
+    for _, hl in pairs(highlights) do
+        if hl and hl.Parent then
+            hl:Destroy()
+        end
+    end
+    highlights = {}
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.T then
+        toggled = not toggled
+        if toggled then
+            addHighlights()
+        else
+            removeHighlights()
+        end
+    end
+end)
