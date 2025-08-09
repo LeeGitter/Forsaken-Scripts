@@ -1,32 +1,107 @@
-local TELEPORT_DISTANCE = 15  -- increased from 10 to 15
-local VELOCITY_MAGNITUDE = 50
-local PROXIMITY_THRESHOLD = 5
-local DODGE_DURATION = 4 -- seconds
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
--- Hitbox proximity check & teleport loop (every 0.01s)
+local player = Players.LocalPlayer
+
+-- Character and components refs
+local character, humanoid, hrp
+
+local function setupCharacter()
+    character = player.Character or player.CharacterAdded:Wait()
+    humanoid = character:WaitForChild("Humanoid")
+    hrp = character:WaitForChild("HumanoidRootPart")
+end
+setupCharacter()
+player.CharacterAdded:Connect(setupCharacter)
+
+local ingameFolder = workspace:WaitForChild("Map"):WaitForChild("Ingame")
+local hitboxFolder = workspace:WaitForChild("Hitboxes")
+
+-- Constantly make clones invisible
 spawn(function()
     while true do
-        if dodgeActive and hrp then
-            -- Velocity spoofing for dodge (kept in RenderStepped for smoothness)
-            -- We'll keep velocity spoofing in RenderStepped as before, but teleport here
+        for _, model in pairs(ingameFolder:GetDescendants()) do
+            if model:IsA("Model") and model.Name == "007n7" then
+                for _, part in pairs(model:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.LocalTransparencyModifier = 1
+                    end
+                end
+            end
+        end
+        wait(0.5)
+    end
+end)
 
-            -- Find nearest hitbox and teleport if close
-            local nearest, dist = nil, math.huge
+local dodgeActive = false
+local speedSpoofActive = false
+
+local TELEPORT_DISTANCE = 15 -- increased teleport distance
+local VELOCITY_MAGNITUDE = 50
+local PROXIMITY_THRESHOLD = 5
+local DODGE_DURATION = 4
+local SPEED_SPOOF_SPEED = 12
+local SPEED_SPOOF_DURATION = 6
+
+-- Teleport loop running every 0.01s
+spawn(function()
+    while true do
+        if dodgeActive and hrp and hrp.Parent then
+            local nearest, minDist = nil, math.huge
             for _, part in ipairs(hitboxFolder:GetChildren()) do
                 if part:IsA("BasePart") then
-                    local distance = (part.Position - hrp.Position).Magnitude
-                    if distance < dist then
-                        dist = distance
+                    local dist = (part.Position - hrp.Position).Magnitude
+                    if dist < minDist then
+                        minDist = dist
                         nearest = part
                     end
                 end
             end
 
-            if nearest and dist < PROXIMITY_THRESHOLD then
-                local direction = (hrp.Position - nearest.Position).Unit
-                hrp.CFrame = CFrame.new(nearest.Position + direction * TELEPORT_DISTANCE)
+            if nearest and minDist < PROXIMITY_THRESHOLD then
+                local dir = (hrp.Position - nearest.Position).Unit
+                hrp.CFrame = CFrame.new(nearest.Position + dir * TELEPORT_DISTANCE)
             end
         end
         wait(0.01)
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if dodgeActive and hrp and hrp.Parent then
+        hrp.Velocity = hrp.CFrame.LookVector * VELOCITY_MAGNITUDE
+    end
+
+    if speedSpoofActive and humanoid and humanoid.Parent then
+        humanoid.WalkSpeed = SPEED_SPOOF_SPEED
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if not humanoid or not hrp then return end
+
+    if input.KeyCode == Enum.KeyCode.Q and not dodgeActive then
+        dodgeActive = true
+        task.delay(DODGE_DURATION, function()
+            dodgeActive = false
+        end)
+
+    elseif input.KeyCode == Enum.KeyCode.E and not speedSpoofActive then
+        speedSpoofActive = true
+        task.spawn(function()
+            local start = tick()
+            while tick() - start < SPEED_SPOOF_DURATION do
+                if not humanoid or humanoid.Health <= 0 then break end
+                humanoid.WalkSpeed = SPEED_SPOOF_SPEED
+                task.wait(0.1)
+            end
+            speedSpoofActive = false
+            if humanoid and humanoid.Parent then
+                humanoid.WalkSpeed = 22 -- reset default speed here
+            end
+        end)
     end
 end)
