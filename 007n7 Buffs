@@ -4,9 +4,20 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- Variables updated on character spawn
+local character = nil
+local humanoid = nil
+local hrp = nil
+
+local function setupCharacter()
+    character = player.Character or player.CharacterAdded:Wait()
+    humanoid = character:WaitForChild("Humanoid")
+    hrp = character:WaitForChild("HumanoidRootPart")
+end
+
+setupCharacter()
+player.CharacterAdded:Connect(setupCharacter)
 
 local ingameFolder = workspace:WaitForChild("Map"):WaitForChild("Ingame")
 local hitboxFolder = workspace:WaitForChild("Hitboxes")
@@ -52,7 +63,7 @@ local function getNearestHitbox()
 end
 
 RunService.RenderStepped:Connect(function()
-    if dodgeActive then
+    if dodgeActive and hrp then
         -- Dodge velocity spoofing
         local originalVelocity = hrp.Velocity
         hrp.Velocity = hrp.CFrame.LookVector * VELOCITY_MAGNITUDE
@@ -64,26 +75,29 @@ RunService.RenderStepped:Connect(function()
             hrp.CFrame = CFrame.new(hitbox.Position + direction * TELEPORT_DISTANCE)
         end
 
-        -- Restore velocity (optional, comment if needed)
+        -- Restore velocity (optional)
         hrp.Velocity = originalVelocity
     end
 
-    if speedSpoofActive then
-        -- Spoof speed 12 by overriding WalkSpeed constantly
+    if speedSpoofActive and humanoid then
         humanoid.WalkSpeed = SPEED_SPOOF_SPEED
     end
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
+    if not humanoid then return end
 
     if input.KeyCode == Enum.KeyCode.Q and not dodgeActive then
+        print("Q pressed: dodge active")
         dodgeActive = true
         task.delay(DODGE_DURATION, function()
             dodgeActive = false
+            print("Dodge ended")
         end)
 
     elseif input.KeyCode == Enum.KeyCode.E and not speedSpoofActive then
+        print("E pressed: speed spoof active")
         speedSpoofActive = true
         task.spawn(function()
             local startTime = tick()
@@ -93,7 +107,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
                 task.wait(0.1)
             end
             speedSpoofActive = false
-            humanoid.WalkSpeed = 22 -- reset to default or your preferred walk speed
+            humanoid.WalkSpeed = 22 -- reset speed here or your preferred default
+            print("Speed spoof ended")
         end)
     end
 end)
