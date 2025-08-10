@@ -1,42 +1,37 @@
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
+-- Combine both scripts
+local player = game.Players.LocalPlayer
 
--- Run the first loadstring (skin)
-loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/007n7%20C00lkidd%20skin", true))()
-
--- Run the second loadstring (buffs)
-loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/007n7%20Buffs", true))()
-
--- Color settings
-local normalColor = Color3.fromRGB(255, 0, 0)       -- Red
-local poisonedColor = Color3.fromRGB(174, 73, 156) -- #AE499C
-
--- Function to set skin color
-local function setSkinColor(color)
+-- Function to set skin tone to red
+local function setSkinRed()
     local char = player.Character
-    if not char then return end
-    for _, part in ipairs(char:GetChildren()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            part.Color = color
+    if char then
+        for _, part in ipairs(char:GetChildren()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.Color = Color3.fromRGB(255, 0, 0)
+            end
         end
     end
 end
 
--- Set initial skin color to red
-setSkinColor(normalColor)
+-- Run first script
+loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/007n7%20C00lkidd%20skin", true))()
 
--- Poison check loop
+-- Run second script
+loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/007n7%20Buffs", true))()
+
+-- Keep skin red until respawn
 task.spawn(function()
-    local char = player.Character
-    if not char then return end
+    while player.Character do
+        setSkinRed()
+        task.wait(0.5) -- reapply every 0.5s
+    end
+end)
 
-    while char.Parent do
-        local poisoned = char:FindFirstChild("Poisoned")
-        if poisoned then
-            setSkinColor(poisonedColor)
-        else
-            setSkinColor(normalColor)
-        end
-        task.wait(0.2) -- check every 0.2 sec
+-- Reapply after respawn
+player.CharacterAdded:Connect(function()
+    task.wait(1) -- small delay for character to load
+    while player.Character do
+        setSkinRed()
+        task.wait(0.5)
     end
 end)
