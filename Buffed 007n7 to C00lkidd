@@ -1,55 +1,42 @@
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
+local player = Players.LocalPlayer
 
-local poisonedCheckRunning = true
+-- Run the first loadstring (skin)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/007n7%20C00lkidd%20skin", true))()
 
--- Run the Buffs script immediately
-local success, err = pcall(function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/007n7%20Buffs", true))()
-end)
-if not success then
-    warn("Failed to load Buffs script:", err)
-end
+-- Run the second loadstring (buffs)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/007n7%20Buffs", true))()
 
--- Function to disable animations for 0.5s and run first script
-local function triggerPoisonEffect()
-    -- Disable animations
-    for _, track in ipairs(Humanoid.Animator:GetPlayingAnimationTracks()) do
-        track:Stop()
-    end
-    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
-    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Walking, false)
+-- Color settings
+local normalColor = Color3.fromRGB(255, 0, 0)       -- Red
+local poisonedColor = Color3.fromRGB(174, 73, 156) -- #AE499C
 
-    -- Run the first loadstring during the wait
-    pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/007n7%20C00lkidd%20skin", true))()
-    end)
-
-    task.wait(0.5)
-
-    -- Re-enable animations
-    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
-    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Walking, true)
-end
-
--- Watch for "Poisoned" folder
-task.spawn(function()
-    while poisonedCheckRunning and Character and Character.Parent do
-        local buffsFolder = Character:FindFirstChild("Buffs")
-        if buffsFolder and buffsFolder:FindFirstChild("Poisoned") then
-            triggerPoisonEffect()
-            -- Wait until Poisoned is gone before checking again
-            repeat
-                task.wait(0.1)
-            until not (Character:FindFirstChild("Buffs") and Character.Buffs:FindFirstChild("Poisoned"))
+-- Function to set skin color
+local function setSkinColor(color)
+    local char = player.Character
+    if not char then return end
+    for _, part in ipairs(char:GetChildren()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Color = color
         end
-        task.wait(0.1)
     end
-end)
+end
 
--- Stop script on respawn
-LocalPlayer.CharacterAdded:Connect(function()
-    poisonedCheckRunning = false
+-- Set initial skin color to red
+setSkinColor(normalColor)
+
+-- Poison check loop
+task.spawn(function()
+    local char = player.Character
+    if not char then return end
+
+    while char.Parent do
+        local poisoned = char:FindFirstChild("Poisoned")
+        if poisoned then
+            setSkinColor(poisonedColor)
+        else
+            setSkinColor(normalColor)
+        end
+        task.wait(0.2) -- check every 0.2 sec
+    end
 end)
