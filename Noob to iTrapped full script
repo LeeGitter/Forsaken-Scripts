@@ -1,17 +1,33 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
 local sources = {
     "https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Noob%20to%20iTrapped%20Skin",
     "https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Part%202%20iTrapped%20%20Wallhacks%20%2B%20Animation",
     "https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/iTrapped%203%20Faces"
 }
 
-for _, url in ipairs(sources) do
-    local success, result = pcall(function()
-        return loadstring(game:HttpGet(url, true))
-    end)
-
-    if success and result then
-        pcall(result)
-    else
-        warn("Failed to load script from:", url)
+local function executeScriptsOnce()
+    for _, url in ipairs(sources) do
+        task.spawn(function()
+            local success, result = pcall(function()
+                return loadstring(game:HttpGet(url, true))
+            end)
+            if success and result then
+                pcall(result)
+            else
+                warn("Failed to load script from:", url)
+            end
+        end)
     end
 end
+
+-- Execute once for current character
+if LocalPlayer.Character then
+    executeScriptsOnce()
+end
+
+-- Execute once per new character spawn
+LocalPlayer.CharacterAdded:Connect(function()
+    executeScriptsOnce()
+end)
