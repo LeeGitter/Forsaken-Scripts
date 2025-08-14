@@ -17,6 +17,17 @@ local DURATION = 10
 local STEPS = 60
 local STEP_TIME = DURATION / STEPS
 
+local wallhackActive = false
+
+--// 🎨 Color Transition: Light Blue → Vibrant Blue
+local function lerpColor(startColor, endColor, alpha)
+    return Color3.new(
+        startColor.R + (endColor.R - startColor.R) * alpha,
+        startColor.G + (endColor.G - startColor.G) * alpha,
+        startColor.B + (endColor.B - startColor.B) * alpha
+    )
+end
+
 --// 🔷 Highlight Logic
 local function highlightPart(part)
     if not part:IsA("BasePart") then return end
@@ -31,23 +42,29 @@ local function highlightPart(part)
     highlight.Adornee = part
     highlight.Parent = part
 
+    local startColor = Color3.fromRGB(173, 216, 230)
+    local endColor = Color3.fromRGB(0, 102, 255) -- Vibrant Blue
+
     task.spawn(function()
         for i = 1, STEPS do
             local t = i / STEPS
             local pulse = math.sin(t * math.pi)
             highlight.FillTransparency = 0.8 - 0.6 * pulse
             highlight.OutlineTransparency = 1 - 0.5 * pulse
+            highlight.FillColor = lerpColor(startColor, endColor, t)
             task.wait(STEP_TIME)
         end
         highlight:Destroy()
     end)
 end
 
---// 🔁 Refresh Killers
+--// 🔁 Refresh Killers (only when wallhackActive)
 task.spawn(function()
     while true do
-        for _, obj in ipairs(KILLER_FOLDER:GetDescendants()) do
-            highlightPart(obj)
+        if wallhackActive then
+            for _, obj in ipairs(KILLER_FOLDER:GetDescendants()) do
+                highlightPart(obj)
+            end
         end
         task.wait(1)
     end
@@ -73,9 +90,18 @@ end
 --// 🎯 Input Listener
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.E then
+
+    if input.KeyCode == Enum.KeyCode.T then
+        wallhackActive = true
+    elseif input.KeyCode == Enum.KeyCode.E then
         if tick() - lastActivated < COOLDOWN then return end
         lastActivated = tick()
         playAnimation()
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.T then
+        wallhackActive = false
     end
 end)
