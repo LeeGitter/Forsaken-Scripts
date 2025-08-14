@@ -1,0 +1,55 @@
+local RunService = game:GetService("RunService")
+
+-- Full ID map
+local IDMap = {
+    ["112904982368692"] = "94369145586258",
+    ["71475106359341"] = "129444509487508",
+    ["101124864542865"] = "77328265115873",
+    ["87716232019856"] = "130537050215101",
+    ["86936166426860"] = "96565422633158"
+}
+
+-- Extract numeric ID from any Texture format
+local function extractId(texture)
+    if not texture then return nil end
+    local id = texture:match("id=(%d+)")
+    if not id then id = texture:match("rbxassetid://(%d+)")
+    end
+    if not id then id = texture:match("(%d+)$")
+    end
+    return id
+end
+
+-- Replace texture if it matches known ID
+local function tryReplace(decal)
+    local currentId = extractId(decal.Texture)
+    local newId = IDMap[currentId]
+    if newId then
+        local newTexture = "rbxassetid://" .. newId
+        if decal.Texture ~= newTexture then
+            decal.Texture = newTexture
+        end
+    end
+end
+
+-- Constant scanner loop
+RunService.RenderStepped:Connect(function()
+    local playersFolder = workspace:FindFirstChild("Players")
+    if not playersFolder then return end
+
+    local survivorFolder = playersFolder:FindFirstChild("Survivors") -- ✅ fixed folder name
+    if not survivorFolder then return end
+
+    for _, noob in ipairs(survivorFolder:GetChildren()) do
+        if noob.Name == "Noob" then
+            local holder = noob:FindFirstChild("ExpressionHolder")
+            if holder then
+                for _, decal in ipairs(holder:GetChildren()) do
+                    if decal:IsA("Decal") then
+                        tryReplace(decal)
+                    end
+                end
+            end
+        end
+    end
+end)
