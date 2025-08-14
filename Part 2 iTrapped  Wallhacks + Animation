@@ -1,0 +1,81 @@
+--// SERVICES
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+--// PLAYER
+local player = Players.LocalPlayer
+
+--// CONFIG
+local ANIMATION_ID = "rbxassetid://117339039533356"
+local COOLDOWN = 50
+local ANIMATION_SPEED = 2
+local lastActivated = 0
+
+local KILLER_FOLDER = Workspace:WaitForChild("Players"):WaitForChild("Killers")
+local DURATION = 10
+local STEPS = 60
+local STEP_TIME = DURATION / STEPS
+
+--// 🔷 Highlight Logic
+local function highlightPart(part)
+    if not part:IsA("BasePart") then return end
+    if part:FindFirstChild("KillerHighlight") then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "KillerHighlight"
+    highlight.FillColor = Color3.fromRGB(173, 216, 230) -- Light Blue
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.8
+    highlight.OutlineTransparency = 1
+    highlight.Adornee = part
+    highlight.Parent = part
+
+    task.spawn(function()
+        for i = 1, STEPS do
+            local t = i / STEPS
+            local pulse = math.sin(t * math.pi)
+            highlight.FillTransparency = 0.8 - 0.6 * pulse
+            highlight.OutlineTransparency = 1 - 0.5 * pulse
+            task.wait(STEP_TIME)
+        end
+        highlight:Destroy()
+    end)
+end
+
+--// 🔁 Refresh Killers
+task.spawn(function()
+    while true do
+        for _, obj in ipairs(KILLER_FOLDER:GetDescendants()) do
+            highlightPart(obj)
+        end
+        task.wait(1)
+    end
+end)
+
+--// 🎬 Animation Trigger
+local function playAnimation()
+    local character = player.Character
+    if not character then return end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    local anim = Instance.new("Animation")
+    anim.AnimationId = ANIMATION_ID
+
+    local track = humanoid:LoadAnimation(anim)
+    track.Priority = Enum.AnimationPriority.Action4
+    track:AdjustSpeed(ANIMATION_SPEED)
+    track:Play()
+end
+
+--// 🎯 Input Listener
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        if tick() - lastActivated < COOLDOWN then return end
+        lastActivated = tick()
+        playAnimation()
+    end
+end)
