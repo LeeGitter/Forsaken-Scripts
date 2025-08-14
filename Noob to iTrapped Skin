@@ -1,0 +1,115 @@
+local model = workspace:WaitForChild("Players"):WaitForChild("Survivors"):WaitForChild("Noob")
+local humanoid = model:FindFirstChildOfClass("Humanoid")
+local rightArm = model:FindFirstChild("Right Arm")
+local head = model:FindFirstChild("Head")
+if not humanoid or not rightArm or not head then return end
+
+-- 🧩 Slateskin customization
+local slateskinMeshId     = "rbxassetid://89532096413960"
+local slateskinTextureId  = "rbxassetid://87244842957289"
+local slateskinSize       = Vector3.new(0.8, 0.8, 0.8)
+local slateskinOffset     = CFrame.new(0, 1, 1.5)
+local slateskinRotation   = CFrame.Angles(0, math.rad(0), 0)
+
+-- 🧹 Remove accessories and unwanted parts
+for _, obj in ipairs(model:GetChildren()) do
+    if obj:IsA("Accessory") or obj.Name == "FloatingDecal" or obj.Name == "TheThing" then
+        obj:Destroy()
+    end
+end
+
+-- 🎩 Create PropellerHat mesh
+local function createPropellerHat()
+    local meshPart = Instance.new("MeshPart")
+    meshPart.Name = "PropellerHat"
+    meshPart.MeshId = "rbxassetid://1323306"
+    meshPart.TextureID = "rbxassetid://6858319436"
+    meshPart.Size = Vector3.new(1, 1, 1)
+    meshPart.Anchored = false
+    meshPart.CanCollide = false
+    meshPart.Material = Enum.Material.SmoothPlastic
+    meshPart.Parent = model
+
+    local offset = CFrame.new(0, -1.3, 0) * CFrame.Angles(0, math.rad(180), 0)
+    meshPart.CFrame = head.CFrame * offset
+
+    local weld = Instance.new("Weld")
+    weld.Part0 = meshPart
+    weld.Part1 = head
+    weld.C0 = offset
+    weld.Parent = meshPart
+end
+createPropellerHat()
+
+-- 🧱 Create Slateskin welded to Right Arm
+local function createSlateskin()
+    local existing = model:FindFirstChild("Slateskin")
+    if existing then existing:Destroy() end
+
+    local meshPart = Instance.new("MeshPart")
+    meshPart.Name = "Slateskin"
+    meshPart.MeshId = slateskinMeshId
+    meshPart.TextureID = slateskinTextureId
+    meshPart.Size = slateskinSize
+    meshPart.Anchored = false
+    meshPart.CanCollide = false
+    meshPart.Material = Enum.Material.SmoothPlastic
+    meshPart.Transparency = 0
+    meshPart.Parent = model
+
+    local offset = slateskinOffset * slateskinRotation
+    meshPart.CFrame = rightArm.CFrame * offset
+
+    local weld = Instance.new("Weld")
+    weld.Part0 = meshPart
+    weld.Part1 = rightArm
+    weld.C0 = offset
+    weld.Parent = meshPart
+
+    local glow = Instance.new("PointLight")
+    glow.Name = "Glow"
+    glow.Color = Color3.fromRGB(180, 255, 255)
+    glow.Brightness = 0.3
+    glow.Range = 6
+    glow.Shadows = false
+    glow.Parent = meshPart
+
+    task.spawn(function()
+        while meshPart and meshPart.Parent do
+            meshPart.Transparency = 0
+            task.wait(0.1)
+        end
+    end)
+end
+createSlateskin()
+
+-- 🧠 Skin override monitor
+local bodyParts = {
+    model:FindFirstChild("Head"),
+    model:FindFirstChild("Torso"),
+    model:FindFirstChild("Left Arm"),
+    model:FindFirstChild("Right Arm"),
+    model:FindFirstChild("Left Leg"),
+    model:FindFirstChild("Right Leg")
+}
+
+task.spawn(function()
+    while true do
+        local allMatch = true
+        for _, part in ipairs(bodyParts) do
+            if not part or part.Color ~= Color3.fromRGB(99, 95, 98) or part.Material ~= Enum.Material.Slate then
+                allMatch = false
+                break
+            end
+        end
+
+        if allMatch then
+            for _, part in ipairs(bodyParts) do
+                part.Color = Color3.fromRGB(70, 130, 180)
+                part.Material = Enum.Material.Glacier
+            end
+        end
+
+        task.wait(0.2)
+    end
+end)
