@@ -1,0 +1,131 @@
+--// 🔧 CONFIGURATION
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+local ANIMATION_ID = "rbxassetid://117339039533356"
+local ANIMATION_KEY = Enum.KeyCode.E
+local OUTLINE_KEY = Enum.KeyCode.T
+
+local KILLERS_FOLDER = workspace:WaitForChild("Players"):WaitForChild("Killers")
+local HIGHLIGHT_COLOR = Color3.fromRGB(173, 216, 230)
+
+local COOLDOWN = 50
+local ANIMATION_SPEED = 2
+local OUTLINE_DURATION = 10
+local FADE_DURATION = 2
+
+local lastActivated = 0
+local isAnimating = false
+local suppressConnection
+local activeHighlights = {}
+
+--// 🎞️ SECTION 1: Animation Burst Logic
+local function lockMovement()
+    humanoid.PlatformStand = true
+end
+
+local function unlockMovement()
+    humanoid.PlatformStand = false
+end
+
+local function stopOtherAnimations()
+    for _, track in humanoid:GetPlayingAnimationTracks() do
+        if track.Animation.AnimationId ~= ANIMATION_ID then
+            track:Stop(0)
+        end
+    end
+end
+
+local function playBurstAnimation()
+    if isAnimating or tick() - lastActivated < COOLDOWN then return end
+    isAnimating = true
+    lastActivated = tick()
+
+    stopOtherAnimations()
+    lockMovement()
+
+    local anim = Instance.new("Animation")
+    anim.AnimationId = ANIMATION_ID
+    local track = humanoid:LoadAnimation(anim)
+    track.Priority = Enum.AnimationPriority.Action4
+    track:AdjustSpeed(ANIMATION_SPEED)
+    track:Play()
+
+    suppressConnection = RunService.RenderStepped:Connect(function()
+        stopOtherAnimations()
+    end)
+
+    track.Stopped:Connect(function()
+        if suppressConnection then suppressConnection:Disconnect() end
+        unlockMovement()
+        isAnimating = false
+    end)
+
+    task.delay(track.Length / ANIMATION_SPEED + 0.2, function()
+        if isAnimating then
+            if suppressConnection then suppressConnection:Disconnect() end
+            unlockMovement()
+            isAnimating = false
+        end
+    end)
+end
+
+--// 🧠 SECTION 2: Wallhack Outline Logic
+local function createHighlight(part)
+    local h = Instance.new("Highlight")
+    h.Adornee = part
+    h.FillColor = HIGHLIGHT_COLOR
+    h.OutlineColor = HIGHLIGHT_COLOR
+    h.FillTransparency = 0.5
+    h.OutlineTransparency = 0
+    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    h.Parent = workspace
+    table.insert(activeHighlights, h)
+end
+
+local function applyWallhack()
+    for _, obj in ipairs(KILLERS_FOLDER:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            createHighlight(obj)
+        end
+    end
+
+    task.delay(OUTLINE_DURATION, function()
+        local startTime = tick()
+        local fadeConn
+
+        fadeConn = RunService.RenderStepped:Connect(function()
+            local alpha = math.clamp((tick() - startTime) / FADE_DURATION, 0, 1)
+            for _, h in ipairs(activeHighlights) do
+                if h and h.Parent then
+                    h.FillTransparency = 0.5 + 0.5 * alpha
+                    h.OutlineTransparency = alpha
+                end
+            end
+            if alpha >= 1 then
+                for _, h in ipairs(activeHighlights) do
+                    if h then h:Destroy() end
+                end
+                activeHighlights = {}
+                fadeConn:Disconnect()
+            end
+        end)
+    end)
+end
+
+--// 🎮 INPUT LISTENER
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+
+    if input.KeyCode == ANIMATION_KEY then
+        playBurstAnimation()
+    elseif input.KeyCode == OUTLINE_KEY then
+        applyWallhack()
+    end
+end)
