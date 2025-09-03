@@ -33,7 +33,8 @@ baseLabel.TextTransparency = 1
 -- Create persistent header
 local headerLabel = Instance.new("TextLabel", screenGui)
 headerLabel.Size = UDim2.new(1, 0, 0.05, 0)
-headerLabel.Position = UDim2.new(0, 0, 0, 0)
+headerLabel.Position = UDim2.new(0.5, 0, 0, 0)
+headerLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 headerLabel.BackgroundTransparency = 1
 headerLabel.TextColor3 = Color3.new(1, 1, 1)
 headerLabel.Font = Enum.Font.FredokaOne
@@ -57,7 +58,7 @@ local function spawnAfterimage(sourceLabel)
     local clone = sourceLabel:Clone()
     clone.Parent = screenGui
     clone.TextTransparency = 0.7
-    clone.ZIndex = 5
+    clone.ZIndex = 4
     TweenService:Create(clone, TweenInfo.new(0.4), {
         TextTransparency = 1,
         Position = clone.Position + UDim2.new(0, math.random(-10,10), 0, math.random(-10,10))
@@ -104,10 +105,28 @@ local function spiralBaseText()
     end)
 end
 
+-- Passive orbit for headerLabel
+local function orbitHeader()
+    local orbitStart = tick()
+    local orbitRadius = 0.01
+    local orbitSpeed = 2
+    local basePos = UDim2.new(0.5, 0, 0.05, 0)
+
+    RunService.Heartbeat:Connect(function()
+        local t = tick() - orbitStart
+        local offsetX = math.cos(t * orbitSpeed) * orbitRadius
+        local offsetY = math.sin(t * orbitSpeed) * orbitRadius
+        headerLabel.Position = basePos + UDim2.new(offsetX, 0, offsetY, 0)
+        headerLabel.Text = randomizeCaps("HellSaken : Call of The Void")
+        spawnAfterimage(headerLabel)
+    end)
+end
+
 -- Execute sequence
 task.delay(3, function()
     flashDistress()
     spiralBaseText()
+    orbitHeader()
 
     -- Load external modules
     local urls = {
