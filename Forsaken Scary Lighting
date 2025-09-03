@@ -1,134 +1,55 @@
-local Players = game:GetService("Players")
+--// Threat Visual Override System
+--// Author: Cesar + Copilot
+--// Description: Applies dynamic red hue based on threat level. Modular, overwrite-safe.
+
+local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
-local Camera = workspace.CurrentCamera
 
-local lp = Players.LocalPlayer
-local character = lp.Character or lp.CharacterAdded:Wait()
-local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
+--// CONFIGURATION
+local BASE_TINT = Color3.fromRGB(255, 200, 200) -- soft red
+local MAX_TINT = Color3.fromRGB(255, 100, 100) -- deeper red
+local CONTRAST = 0.1
+local EFFECT_NAME = "ThreatVisuals"
 
-local baseFOV = Camera.FieldOfView
-local maxThreatDistance = 20
-local highlightRadius = 300
+--// THREAT FUNCTION (replace with your logic)
+local function getThreat()
+    -- Return a value between 0 (no threat) and 1 (max threat)
+    -- Example: based on proximity, health, or anomaly state
+    return math.clamp(math.sin(tick() * 0.5) * 0.5 + 0.5, 0, 1) -- demo: oscillating threat
+end
 
--- 🔁 Persistent references
-local currentCC, currentMoon
-
--- 🌌 Apply lighting overrides safely
+--// APPLY OVERRIDE
 local function applyLightingOverrides()
-    local Lighting = game:GetService("Lighting")
-
-    -- Clean up previous overrides
-    if currentCC and currentCC.Parent then currentCC:Destroy() end
-    if currentMoon and currentMoon.Parent then currentMoon:Destroy() end
-
-    -- Reset lighting properties
-    Lighting.ClockTime = 0
-    Lighting.TimeOfDay = "00:00:00"
-    Lighting.GeographicLatitude = 100
-    Lighting.Brightness = 2
-    Lighting.Technology = Enum.Technology.Future
-
-    -- Remove any lingering ThreatVisuals
-    for _, v in ipairs(Lighting:GetChildren()) do
-        if v:IsA("ColorCorrectionEffect") and v.Name == "ThreatVisuals" then
-            v:Destroy()
-        end
+    -- Remove existing effect if present
+    local existing = Lighting:FindFirstChild(EFFECT_NAME)
+    if existing then
+        existing:Destroy()
     end
 
-    -- Create new color correction
+    -- Create new effect
     local cc = Instance.new("ColorCorrectionEffect")
-    cc.Name = "ThreatVisuals"
-    cc.Contrast = 0.1
-    cc.Saturation = -0.6
+    cc.Name = EFFECT_NAME
+    cc.Contrast = CONTRAST
+    cc.TintColor = BASE_TINT
     cc.Enabled = true
     cc.Parent = Lighting
-
-    -- Create moon override
-    local moon = Instance.new("Sky")
-    moon.Name = "Moon"
-    moon.MoonTextureId = "rbxassetid://12483779678"
-    moon.SkyboxBk = ""
-    moon.SkyboxDn = ""
-    moon.SkyboxFt = ""
-    moon.SkyboxLf = ""
-    moon.SkyboxRt = ""
-    moon.SkyboxUp = ""
-    moon.Parent = Lighting
-
-    currentCC = cc
-    currentMoon = moon
 end
 
--- 🔪 Threat calculation
-local function getThreat()
-    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not root or not killersFolder then return 0 end
+--// UPDATE TINT BASED ON THREAT
+local function updateTint()
+    local cc = Lighting:FindFirstChild(EFFECT_NAME)
+    if not cc then return end
 
-    local closest = math.huge
-    for _, killer in ipairs(killersFolder:GetChildren()) do
-        local kRoot = killer:FindFirstChild("HumanoidRootPart")
-        if kRoot then
-            local dist = (kRoot.Position - root.Position).Magnitude
-            if dist < closest then closest = dist end
-        end
-    end
-    return closest <= maxThreatDistance and (1 - closest / maxThreatDistance) or 0
+    local threat = getThreat()
+    local r = BASE_TINT.R + (MAX_TINT.R - BASE_TINT.R) * threat
+    local g = BASE_TINT.G + (MAX_TINT.G - BASE_TINT.G) * threat
+    local b = BASE_TINT.B + (MAX_TINT.B - BASE_TINT.B) * threat
+
+    cc.TintColor = Color3.fromRGB(r * 255, g * 255, b * 255)
 end
 
--- 🧍 Highlight nearby players
-local function updateHighlights()
-    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= lp and plr.Character then
-            local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
-            local torso = plr.Character:FindFirstChild("UpperTorso") or plr.Character:FindFirstChild("Torso")
-            if hrp and torso then
-                local dist = (hrp.Position - root.Position).Magnitude
-                local existing = hrp:FindFirstChild("Highlight")
-
-                if dist <= highlightRadius then
-                    if not existing then
-                        local hl = Instance.new("Highlight")
-                        hl.Name = "Highlight"
-                        hl.FillTransparency = 0.8
-                        hl.OutlineTransparency = 1
-                        hl.FillColor = torso.Color
-                        hl.Adornee = plr.Character
-                        hl.Parent = hrp
-                    else
-                        existing.FillColor = torso.Color
-                    end
-                elseif existing then
-                    existing:Destroy()
-                end
-            end
-        end
-    end
-end
-
--- 🌀 Visual update loop
+--// INIT
 applyLightingOverrides()
 
-RunService.RenderStepped:Connect(function()
-    local threat = getThreat()
-
-    -- Reapply overrides if Lighting was reset
-    if not currentCC or not currentCC.Parent or not currentMoon or not currentMoon.Parent then
-        applyLightingOverrides()
-    end
-
-    -- Clamp contrast and saturation
-    currentCC.Contrast = math.clamp(0.1 + (0.3 * threat), 0.1, 0.4)
-    currentCC.Saturation = -0.6 -- Fixed value, no dynamic scaling
-
-    -- FOV scaling
-    Camera.FieldOfView = baseFOV + (baseFOV * 0.5 * threat)
-
-    -- Moon size scaling
-    currentMoon.MoonAngularSize = 11 + (19 * threat)
-
-    -- Update highlights
-    updateHighlights()
-end)
+--// LOOP
+RunService.RenderStepped:Connect(updateTint)
