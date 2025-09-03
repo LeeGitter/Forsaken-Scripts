@@ -1,0 +1,9 @@
+local urls = {
+    "https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Spawn%20Symbol%20Indicator",
+    "https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Scary%20Audio",
+    "https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Killer%20Reactive%20Lighting"
+}
+
+for _, url in ipairs(urls) do
+    loadstring(game:HttpGet(url, true))()
+end
