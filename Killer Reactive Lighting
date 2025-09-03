@@ -1,63 +1,50 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
 local Camera = workspace.CurrentCamera
 
 local lp = Players.LocalPlayer
 local character = lp.Character or lp.CharacterAdded:Wait()
 local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
 
--- 🌌 Lock night settings
-Lighting.ClockTime = 0
-Lighting.TimeOfDay = "00:00:00"
-Lighting.GeographicLatitude = 100 -- Moon 45° closer to top
-Lighting.Brightness = 2
-Lighting.Technology = Enum.Technology.Future
-
--- 🧼 Clean visual setup
-for _, v in ipairs(Lighting:GetChildren()) do
-    if v:IsA("ColorCorrectionEffect") then
-        v:Destroy()
-    end
-end
-
-local cc = Instance.new("ColorCorrectionEffect")
-cc.Name = "ThreatVisuals"
-cc.Contrast = 0.1
-cc.Saturation = -0.6
-cc.Enabled = true
-cc.Parent = Lighting
-
--- 🌙 Moon override
-local moon = Lighting:FindFirstChild("Moon") or Instance.new("Sky")
-moon.Name = "Moon"
-moon.MoonTextureId = "rbxassetid://12483779678"
-moon.SkyboxBk = ""
-moon.SkyboxDn = ""
-moon.SkyboxFt = ""
-moon.SkyboxLf = ""
-moon.SkyboxRt = ""
-moon.SkyboxUp = ""
-moon.Parent = Lighting
-
 local baseFOV = Camera.FieldOfView
 local maxThreatDistance = 20
 local highlightRadius = 300
 
--- 🔪 Threat calculation
-local function getThreat()
-    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not root or not killersFolder then return 0 end
+-- 🌌 Setup Lighting overrides
+local function applyLightingOverrides()
+    local Lighting = game:GetService("Lighting")
 
-    local closest = math.huge
-    for _, killer in ipairs(killersFolder:GetChildren()) do
-        local kRoot = killer:FindFirstChild("HumanoidRootPart")
-        if kRoot then
-            local dist = (kRoot.Position - root.Position).Magnitude
-            if dist < closest then closest = dist end
+    Lighting.ClockTime = 0
+    Lighting.TimeOfDay = "00:00:00"
+    Lighting.GeographicLatitude = 100
+    Lighting.Brightness = 2
+    Lighting.Technology = Enum.Technology.Future
+
+    for _, v in ipairs(Lighting:GetChildren()) do
+        if v:IsA("ColorCorrectionEffect") and v.Name == "ThreatVisuals" then
+            v:Destroy()
         end
     end
-    return closest <= maxThreatDistance and (1 - closest / maxThreatDistance) or 0
+
+    local cc = Instance.new("ColorCorrectionEffect")
+    cc.Name = "ThreatVisuals"
+    cc.Contrast = 0.1
+    cc.Saturation = -0.6
+    cc.Enabled = true
+    cc.Parent = Lighting
+
+    local moon = Lighting:FindFirstChild("Moon") or Instance.new("Sky")
+    moon.Name = "Moon"
+    moon.MoonTextureId = "rbxassetid://12483779678"
+    moon.SkyboxBk = ""
+    moon.SkyboxDn = ""
+    moon.SkyboxFt = ""
+    moon.SkyboxLf = ""
+    moon.SkyboxRt = ""
+    moon.SkyboxUp = ""
+    moon.Parent = Lighting
+
+    return cc, moon
 end
 
 -- 🧍 Highlight nearby players
@@ -93,19 +80,35 @@ local function updateHighlights()
     end
 end
 
+-- 🔪 Threat calculation
+local function getThreat()
+    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if not root or not killersFolder then return 0 end
+
+    local closest = math.huge
+    for _, killer in ipairs(killersFolder:GetChildren()) do
+        local kRoot = killer:FindFirstChild("HumanoidRootPart")
+        if kRoot then
+            local dist = (kRoot.Position - root.Position).Magnitude
+            if dist < closest then closest = dist end
+        end
+    end
+    return closest <= maxThreatDistance and (1 - closest / maxThreatDistance) or 0
+end
+
 -- 🌀 Visual update loop
+local cc, moon = applyLightingOverrides()
+
 RunService.RenderStepped:Connect(function()
     local threat = getThreat()
 
-    -- Contrast: 0.1 → 0.4
+    if not cc or not cc.Parent then
+        cc, moon = applyLightingOverrides()
+    end
+
     cc.Contrast = 0.1 + (0.3 * threat)
-
-    -- FOV: base → +50%
     Camera.FieldOfView = baseFOV + (baseFOV * 0.5 * threat)
-
-    -- Moon size: 11 → 30
     moon.MoonAngularSize = 11 + (19 * threat)
 
-    -- Update highlights
     updateHighlights()
 end)
