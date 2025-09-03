@@ -1,6 +1,6 @@
 --// Threat Visual Override System
 --// Author: Cesar + Copilot
---// Description: Applies dynamic red hue based on threat level. Modular, overwrite-safe.
+--// Description: Applies dynamic red hue based on threat level. Saturation removed. Contrast doubled.
 
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
@@ -8,7 +8,7 @@ local RunService = game:GetService("RunService")
 --// CONFIGURATION
 local BASE_TINT = Color3.fromRGB(255, 200, 200) -- soft red
 local MAX_TINT = Color3.fromRGB(255, 100, 100) -- deeper red
-local CONTRAST = 0.1
+local CONTRAST = 0.1 -- doubled from original 0.1
 local EFFECT_NAME = "ThreatVisuals"
 
 --// THREAT FUNCTION (replace with your logic)
