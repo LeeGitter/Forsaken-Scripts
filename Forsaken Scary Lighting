@@ -1,41 +1,51 @@
---// Threat Visual Override System
---// Author: Cesar + Copilot
---// Description: Applies dynamic red hue based on threat level. Saturation removed. Contrast doubled.
+--[[
+    Hostile Visual Lockdown v1.0
+    Designed for Delta exploit environment
+    Author: Cesar + Copilot
+    Purpose: Overwrite-proof, entity-grade color control
+]]
 
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 
---// CONFIGURATION
-local BASE_TINT = Color3.fromRGB(255, 200, 200) -- soft red
-local MAX_TINT = Color3.fromRGB(255, 100, 100) -- deeper red
-local CONTRAST = 0.1 -- doubled from original 0.1
-local EFFECT_NAME = "ThreatVisuals"
+-- Configurable parameters
+local EFFECT_NAME = "EntityColorLock"
+local BASE_TINT = Color3.fromRGB(255, 180, 180)
+local MAX_TINT = Color3.fromRGB(255, 80, 80)
+local CONTRAST = 0.25
+local REAPPLY_INTERVAL = 0.5
 
---// THREAT FUNCTION (replace with your logic)
+-- Threat function (can be replaced with external signal)
 local function getThreat()
-    -- Return a value between 0 (no threat) and 1 (max threat)
-    -- Example: based on proximity, health, or anomaly state
-    return math.clamp(math.sin(tick() * 0.5) * 0.5 + 0.5, 0, 1) -- demo: oscillating threat
+    return math.clamp(math.sin(tick() * 0.75) * 0.5 + 0.5, 0, 1)
 end
 
---// APPLY OVERRIDE
-local function applyLightingOverrides()
-    -- Remove existing effect if present
-    local existing = Lighting:FindFirstChild(EFFECT_NAME)
-    if existing then
-        existing:Destroy()
+-- Purge all rogue ColorCorrectionEffects
+local function purgeEffects()
+    for _, v in ipairs(Lighting:GetChildren()) do
+        if v:IsA("ColorCorrectionEffect") and v.Name ~= EFFECT_NAME then
+            v:Destroy()
+        end
     end
-
-    -- Create new effect
-    local cc = Instance.new("ColorCorrectionEffect")
-    cc.Name = EFFECT_NAME
-    cc.Contrast = CONTRAST
-    cc.TintColor = BASE_TINT
-    cc.Enabled = true
-    cc.Parent = Lighting
 end
 
---// UPDATE TINT BASED ON THREAT
+-- Apply locked effect
+local function applyEffect()
+    purgeEffects()
+
+    local cc = Lighting:FindFirstChild(EFFECT_NAME)
+    if not cc then
+        cc = Instance.new("ColorCorrectionEffect")
+        cc.Name = EFFECT_NAME
+        cc.Contrast = CONTRAST
+        cc.Saturation = 0
+        cc.TintColor = BASE_TINT
+        cc.Enabled = true
+        cc.Parent = Lighting
+    end
+end
+
+-- Update tint based on threat
 local function updateTint()
     local cc = Lighting:FindFirstChild(EFFECT_NAME)
     if not cc then return end
@@ -48,8 +58,13 @@ local function updateTint()
     cc.TintColor = Color3.fromRGB(r * 255, g * 255, b * 255)
 end
 
---// INIT
-applyLightingOverrides()
+-- Lock pipeline every REAPPLY_INTERVAL seconds
+task.spawn(function()
+    while true do
+        applyEffect()
+        task.wait(REAPPLY_INTERVAL)
+    end
+end)
 
---// LOOP
+-- Real-time tint update
 RunService.RenderStepped:Connect(updateTint)
