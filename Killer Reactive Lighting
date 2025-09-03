@@ -1,114 +1,70 @@
-local Players = game:GetService("Players")
+--[[
+    Hostile Visual Lockdown v1.0
+    Designed for Delta exploit environment
+    Author: Cesar + Copilot
+    Purpose: Overwrite-proof, entity-grade color control
+]]
+
+local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
-local Camera = workspace.CurrentCamera
 
-local lp = Players.LocalPlayer
-local character = lp.Character or lp.CharacterAdded:Wait()
-local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
+-- Configurable parameters
+local EFFECT_NAME = "EntityColorLock"
+local BASE_TINT = Color3.fromRGB(255, 180, 180)
+local MAX_TINT = Color3.fromRGB(255, 80, 80)
+local CONTRAST = 0.25
+local REAPPLY_INTERVAL = 0.5
 
-local baseFOV = Camera.FieldOfView
-local maxThreatDistance = 20
-local highlightRadius = 300
+-- Threat function (can be replaced with external signal)
+local function getThreat()
+    return math.clamp(math.sin(tick() * 0.75) * 0.5 + 0.5, 0, 1)
+end
 
--- 🌌 Setup Lighting overrides
-local function applyLightingOverrides()
-    local Lighting = game:GetService("Lighting")
-
-    Lighting.ClockTime = 0
-    Lighting.TimeOfDay = "00:00:00"
-    Lighting.GeographicLatitude = 100
-    Lighting.Brightness = 2
-    Lighting.Technology = Enum.Technology.Future
-
+-- Purge all rogue ColorCorrectionEffects
+local function purgeEffects()
     for _, v in ipairs(Lighting:GetChildren()) do
-        if v:IsA("ColorCorrectionEffect") and v.Name == "ThreatVisuals" then
+        if v:IsA("ColorCorrectionEffect") and v.Name ~= EFFECT_NAME then
             v:Destroy()
         end
     end
-
-    local cc = Instance.new("ColorCorrectionEffect")
-    cc.Name = "ThreatVisuals"
-    cc.Contrast = 0.1
-    cc.Saturation = -0.6
-    cc.Enabled = true
-    cc.Parent = Lighting
-
-    local moon = Lighting:FindFirstChild("Moon") or Instance.new("Sky")
-    moon.Name = "Moon"
-    moon.MoonTextureId = "rbxassetid://12483779678"
-    moon.SkyboxBk = ""
-    moon.SkyboxDn = ""
-    moon.SkyboxFt = ""
-    moon.SkyboxLf = ""
-    moon.SkyboxRt = ""
-    moon.SkyboxUp = ""
-    moon.Parent = Lighting
-
-    return cc, moon
 end
 
--- 🧍 Highlight nearby players
-local function updateHighlights()
-    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+-- Apply locked effect
+local function applyEffect()
+    purgeEffects()
 
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= lp and plr.Character then
-            local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
-            local torso = plr.Character:FindFirstChild("UpperTorso") or plr.Character:FindFirstChild("Torso")
-            if hrp and torso then
-                local dist = (hrp.Position - root.Position).Magnitude
-                local existing = hrp:FindFirstChild("Highlight")
-
-                if dist <= highlightRadius then
-                    if not existing then
-                        local hl = Instance.new("Highlight")
-                        hl.Name = "Highlight"
-                        hl.FillTransparency = 0.8
-                        hl.OutlineTransparency = 1
-                        hl.FillColor = torso.Color
-                        hl.Adornee = plr.Character
-                        hl.Parent = hrp
-                    else
-                        existing.FillColor = torso.Color
-                    end
-                elseif existing then
-                    existing:Destroy()
-                end
-            end
-        end
+    local cc = Lighting:FindFirstChild(EFFECT_NAME)
+    if not cc then
+        cc = Instance.new("ColorCorrectionEffect")
+        cc.Name = EFFECT_NAME
+        cc.Contrast = CONTRAST
+        cc.Saturation = 0
+        cc.TintColor = BASE_TINT
+        cc.Enabled = true
+        cc.Parent = Lighting
     end
 end
 
--- 🔪 Threat calculation
-local function getThreat()
-    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not root or not killersFolder then return 0 end
+-- Update tint based on threat
+local function updateTint()
+    local cc = Lighting:FindFirstChild(EFFECT_NAME)
+    if not cc then return end
 
-    local closest = math.huge
-    for _, killer in ipairs(killersFolder:GetChildren()) do
-        local kRoot = killer:FindFirstChild("HumanoidRootPart")
-        if kRoot then
-            local dist = (kRoot.Position - root.Position).Magnitude
-            if dist < closest then closest = dist end
-        end
-    end
-    return closest <= maxThreatDistance and (1 - closest / maxThreatDistance) or 0
-end
-
--- 🌀 Visual update loop
-local cc, moon = applyLightingOverrides()
-
-RunService.RenderStepped:Connect(function()
     local threat = getThreat()
+    local r = BASE_TINT.R + (MAX_TINT.R - BASE_TINT.R) * threat
+    local g = BASE_TINT.G + (MAX_TINT.G - BASE_TINT.G) * threat
+    local b = BASE_TINT.B + (MAX_TINT.B - BASE_TINT.B) * threat
 
-    if not cc or not cc.Parent then
-        cc, moon = applyLightingOverrides()
+    cc.TintColor = Color3.fromRGB(r * 255, g * 255, b * 255)
+end
+
+-- Lock pipeline every REAPPLY_INTERVAL seconds
+task.spawn(function()
+    while true do
+        applyEffect()
+        task.wait(REAPPLY_INTERVAL)
     end
-
-    cc.Contrast = 0.1 + (0.3 * threat)
-    Camera.FieldOfView = baseFOV + (baseFOV * 0.5 * threat)
-    moon.MoonAngularSize = 11 + (19 * threat)
-
-    updateHighlights()
 end)
+
+-- Real-time tint update
+RunService.RenderStepped:Connect(updateTint)
