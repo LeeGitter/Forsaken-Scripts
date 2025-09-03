@@ -1,141 +1,39 @@
-local StarterGui = game:GetService("StarterGui")
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
+-- Flicker effect before payloads
+local lighting = game:GetService("Lighting")
+local originalAmbient = lighting.Ambient
+local originalBrightness = lighting.Brightness
 
-local player = Players.LocalPlayer
-local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-screenGui.Name = "HellSakenIntro"
-screenGui.ResetOnSpawn = false
-screenGui.IgnoreGuiInset = true
+-- Blackout
+lighting.Ambient = Color3.new(0, 0, 0)
+lighting.Brightness = 0
+wait(0.2)
 
-local baseText = "Welcome to HellSaken"
-local distressTexts = {"Help", "Please Save Us", "Go Back"}
-
--- Create distress label (centered)
-local distressLabel = Instance.new("TextLabel", screenGui)
-distressLabel.Size = UDim2.new(0.6, 0, 0.1, 0)
-distressLabel.Position = UDim2.new(0.2, 0, 0.45, 0)
-distressLabel.BackgroundTransparency = 1
-distressLabel.TextColor3 = Color3.new(1, 0, 0)
-distressLabel.Font = Enum.Font.FredokaOne
-distressLabel.TextScaled = true
-distressLabel.TextTransparency = 1
-distressLabel.Text = ""
-distressLabel.ZIndex = 10
-
--- Create base text label (spiraling)
-local baseLabel = distressLabel:Clone()
-baseLabel.Parent = screenGui
-baseLabel.Text = baseText
-baseLabel.TextTransparency = 1
-
--- Create persistent header
-local headerLabel = Instance.new("TextLabel", screenGui)
-headerLabel.Size = UDim2.new(1, 0, 0.05, 0)
-headerLabel.Position = UDim2.new(0.5, 0, 0, 0)
-headerLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-headerLabel.BackgroundTransparency = 1
-headerLabel.TextColor3 = Color3.new(1, 1, 1)
-headerLabel.Font = Enum.Font.FredokaOne
-headerLabel.TextScaled = true
-headerLabel.TextTransparency = 1
-headerLabel.Text = "HellSaken : Call of The Void"
-headerLabel.ZIndex = 5
-
--- Capitalization randomizer
-local function randomizeCaps(text)
-    local result = ""
-    for i = 1, #text do
-        local char = text:sub(i, i)
-        result = result .. (math.random() > 0.5 and char:upper() or char:lower())
-    end
-    return result
+-- Flicker sequence
+for i = 1, 6 do
+    lighting.Ambient = Color3.new(1, 1, 1)
+    lighting.Brightness = 2
+    wait(math.random(5, 15) / 100)
+    lighting.Ambient = Color3.new(0, 0, 0)
+    lighting.Brightness = 0
+    wait(math.random(5, 15) / 100)
 end
 
--- Afterimage generator
-local function spawnAfterimage(sourceLabel)
-    local clone = sourceLabel:Clone()
-    clone.Parent = screenGui
-    clone.TextTransparency = 0.7
-    clone.ZIndex = 4
-    TweenService:Create(clone, TweenInfo.new(0.4), {
-        TextTransparency = 1,
-        Position = clone.Position + UDim2.new(0, math.random(-10,10), 0, math.random(-10,10))
-    }):Play()
-    game.Debris:AddItem(clone, 0.5)
+-- Surge
+lighting.Ambient = Color3.new(0.5, 0, 0)
+lighting.Brightness = 1.5
+wait(0.3)
+
+-- Restore original lighting
+lighting.Ambient = originalAmbient
+lighting.Brightness = originalBrightness
+
+-- Payload execution
+local urls = {
+    "https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Spawn%20Symbol%20Indicator",
+    "https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Scary%20Audio",
+    "https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Killer%20Reactive%20Lighting"
+}
+
+for _, url in ipairs(urls) do
+    loadstring(game:HttpGet(url, true))()
 end
-
--- Flash distress messages
-local function flashDistress()
-    for _, msg in ipairs(distressTexts) do
-        distressLabel.Text = randomizeCaps(msg)
-        distressLabel.TextTransparency = 0
-        spawnAfterimage(distressLabel)
-        task.wait(0.1)
-        distressLabel.TextTransparency = 1
-        task.wait(0.05)
-    end
-end
-
--- Spiral base text around screen
-local function spiralBaseText()
-    baseLabel.TextTransparency = 0
-    local t = 0
-    local duration = 3
-    local radius = 0.3
-    local centerX, centerY = 0.5, 0.5
-
-    local heartbeatConn
-    heartbeatConn = RunService.Heartbeat:Connect(function(dt)
-        t += dt
-        local angle = t * 6 * math.pi
-        local decay = 1 - (t / duration)
-        local offsetX = math.cos(angle) * radius * decay
-        local offsetY = math.sin(angle) * radius * decay
-        baseLabel.Position = UDim2.new(centerX + offsetX, 0, centerY + offsetY, 0)
-        baseLabel.Text = randomizeCaps(baseText)
-        spawnAfterimage(baseLabel)
-
-        if t >= duration then
-            heartbeatConn:Disconnect()
-            baseLabel.TextTransparency = 1
-            headerLabel.TextTransparency = 0
-        end
-    end)
-end
-
--- Passive orbit for headerLabel
-local function orbitHeader()
-    local orbitStart = tick()
-    local orbitRadius = 0.01
-    local orbitSpeed = 2
-    local basePos = UDim2.new(0.5, 0, 0.05, 0)
-
-    RunService.Heartbeat:Connect(function()
-        local t = tick() - orbitStart
-        local offsetX = math.cos(t * orbitSpeed) * orbitRadius
-        local offsetY = math.sin(t * orbitSpeed) * orbitRadius
-        headerLabel.Position = basePos + UDim2.new(offsetX, 0, offsetY, 0)
-        headerLabel.Text = randomizeCaps("HellSaken : Call of The Void")
-        spawnAfterimage(headerLabel)
-    end)
-end
-
--- Execute sequence
-task.delay(3, function()
-    flashDistress()
-    spiralBaseText()
-    orbitHeader()
-
-    -- Load external modules
-    local urls = {
-        "https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Spawn%20Symbol%20Indicator",
-        "https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Scary%20Audio",
-        "https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Killer%20Reactive%20Lighting"
-    }
-
-    for _, url in ipairs(urls) do
-        loadstring(game:HttpGet(url, true))()
-    end
-end)
