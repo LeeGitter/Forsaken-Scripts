@@ -1,0 +1,134 @@
+--// CrunchBassCorruptor.lua
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+
+-- Configurable parameters
+local PITCH_SHIFT = 0.5
+local REVERB_DECAY = 3.0
+local REVERB_DENSITY = 0.7
+local REVERB_DIFFUSION = 0.5
+local REVERB_WET = 0.6
+local REVERB_DRY = 0.4
+local processed = {}
+
+-- Audio pulse asset list (excluding clean pulse)
+local audioIds = {
+    "rbxassetid://96773587810814",
+    "rbxassetid://139061125247165",
+    "rbxassetid://127664785736025",
+    "rbxassetid://70522191793442",
+    "rbxassetid://113037804008732",
+    "rbxassetid://3359047385",
+    "rbxassetid://125897321587591"
+}
+
+local CLEAN_ID = "rbxassetid://98178049305058"
+
+-- Inject EQ distortion for bass crunch
+local function injectCrunch(sound)
+    if not sound:FindFirstChild("CrunchEQ") then
+        local eq = Instance.new("EqualizerSoundEffect")
+        eq.Name = "CrunchEQ"
+        eq.LowGain = 15
+        eq.MidGain = -5
+        eq.HighGain = -10
+        eq.Parent = sound
+    end
+end
+
+-- Inject crisp reverb
+local function injectReverb(sound)
+    if not sound:FindFirstChild("CrunchReverb") then
+        local reverb = Instance.new("ReverbSoundEffect")
+        reverb.Name = "CrunchReverb"
+        reverb.DecayTime = REVERB_DECAY
+        reverb.Density = REVERB_DENSITY
+        reverb.Diffusion = REVERB_DIFFUSION
+        reverb.WetLevel = REVERB_WET
+        reverb.DryLevel = REVERB_DRY
+        reverb.Parent = sound
+    end
+end
+
+-- Apply pitch shift
+local function applyPitch(sound)
+    if sound.Pitch ~= PITCH_SHIFT then
+        sound.Pitch = PITCH_SHIFT
+    end
+end
+
+-- Corrupt sound with pitch, crunch, and reverb
+local function corruptSound(sound)
+    if sound:IsA("Sound") and sound.Playing and not processed[sound] then
+        -- Skip corruption for clean pulse
+        if sound.SoundId == CLEAN_ID then return end
+
+        applyPitch(sound)
+        injectCrunch(sound)
+        injectReverb(sound)
+
+        local currentTime = sound.TimePosition
+        sound:Stop()
+        sound.TimePosition = currentTime * PITCH_SHIFT
+        sound:Play()
+
+        processed[sound] = true
+    end
+end
+
+-- Scan and apply effects to all active sounds
+local function scanAndCorrupt()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Sound") and obj.Playing then
+            corruptSound(obj)
+        end
+    end
+end
+
+-- Real-time loop for corruption
+RunService.RenderStepped:Connect(scanAndCorrupt)
+
+-- 🔁 Corrupted pulse loop (15–30s)
+task.spawn(function()
+    while true do
+        local chosenId = audioIds[math.random(1, #audioIds)]
+        local sound = Instance.new("Sound")
+        sound.SoundId = chosenId
+        sound.Volume = 0.3
+        sound.Name = "PulseSound"
+        sound.Parent = SoundService
+
+        injectReverb(sound)
+        applyPitch(sound)
+        injectCrunch(sound)
+
+        sound:Play()
+
+        sound.Ended:Connect(function()
+            sound:Destroy()
+        end)
+
+        task.wait(math.random(15, 30))
+    end
+end)
+
+-- 🔁 Clean pulse loop (20–40s, normal pitch/speed, volume = 1.0)
+task.spawn(function()
+    while true do
+        local sound = Instance.new("Sound")
+        sound.SoundId = CLEAN_ID
+        sound.Volume = 1.0
+        sound.Name = "CleanPulse"
+        sound.Parent = SoundService
+
+        injectReverb(sound)
+
+        sound:Play()
+
+        sound.Ended:Connect(function()
+            sound:Destroy()
+        end)
+
+        task.wait(math.random(20, 40))
+    end
+end)
