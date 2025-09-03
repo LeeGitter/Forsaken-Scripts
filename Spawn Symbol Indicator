@@ -1,0 +1,69 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local lp = Players.LocalPlayer
+local character = lp.Character or lp.CharacterAdded:Wait()
+local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
+
+-- 🧠 Threat logic
+local spinRange = 80
+local tintRange = 60
+local shakeRange = 20
+
+local function getClosestDistance()
+    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if not root or not killersFolder then return math.huge end
+
+    local closest = math.huge
+    for _, killer in ipairs(killersFolder:GetChildren()) do
+        local kRoot = killer:FindFirstChild("HumanoidRootPart")
+        if kRoot then
+            local dist = (kRoot.Position - root.Position).Magnitude
+            if dist < closest then closest = dist end
+        end
+    end
+    return closest
+end
+
+-- 🎯 GUI setup
+local gui = Instance.new("ScreenGui")
+gui.Name = "ThreatHUD"
+gui.ResetOnSpawn = false
+gui.Parent = lp:WaitForChild("PlayerGui")
+
+local icon = Instance.new("ImageLabel")
+icon.Name = "ThreatIcon"
+icon.Size = UDim2.new(0, 40, 0, 40)
+icon.Position = UDim2.new(0.5, -20, 1, -45)
+icon.AnchorPoint = Vector2.new(0.5, 0.5)
+icon.BackgroundTransparency = 1
+icon.Image = "rbxassetid://8156777594"
+icon.Visible = true
+icon.Parent = gui
+
+-- 🔁 Animation loop
+local rotation = 0
+RunService.RenderStepped:Connect(function()
+    local closest = getClosestDistance()
+
+    -- 🌀 Spin threat (0–1 based on 80 studs)
+    local spinThreat = closest <= spinRange and (1 - closest / spinRange) or 0
+    local rotSpeed = 18 + (342 * math.pow(spinThreat, 2.2))
+    rotation = (rotation + rotSpeed * RunService.RenderStepped:Wait()) % 360
+    icon.Rotation = rotation
+
+    -- 🔴 Tint threat (0–1 based on 60 studs)
+    local tintThreat = closest <= tintRange and (1 - closest / tintRange) or 0
+    icon.ImageColor3 = Color3.new(1, 1 - tintThreat, 1 - tintThreat)
+
+    -- 🫨 Shake threat (only within 20 studs)
+    if closest <= shakeRange then
+        local shakeThreat = 1 - closest / shakeRange
+        local shakeMagnitude = 2 + (6 * shakeThreat)
+        local offsetX = math.random(-shakeMagnitude, shakeMagnitude)
+        local offsetY = math.random(-shakeMagnitude, shakeMagnitude)
+        icon.Position = UDim2.new(0.5, -20 + offsetX, 1, -45 + offsetY)
+    else
+        icon.Position = UDim2.new(0.5, -20, 1, -45)
+    end
+end)
