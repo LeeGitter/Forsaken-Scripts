@@ -112,7 +112,7 @@ task.spawn(function()
     end
 end)
 
--- 🔁 Clean pulse loop (20–40s, normal pitch/speed, volume = 1.0)
+-- 🔁 Clean pulse loop (20–35, normal pitch/speed, volume = 1.0)
 task.spawn(function()
     while true do
         local sound = Instance.new("Sound")
