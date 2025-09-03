@@ -1,30 +1,63 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
 local Camera = workspace.CurrentCamera
 
 local lp = Players.LocalPlayer
 local character = lp.Character or lp.CharacterAdded:Wait()
 local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
 
--- 🧼 Clean visual setup
-Lighting.Technology = Enum.Technology.Future
-
-for _, v in ipairs(Lighting:GetChildren()) do
-    if v:IsA("ColorCorrectionEffect") then
-        v:Destroy()
-    end
-end
-
-local cc = Instance.new("ColorCorrectionEffect")
-cc.Name = "ThreatVisuals"
-cc.Contrast = 0.1
-cc.Saturation = -0.6
-cc.Enabled = true
-cc.Parent = Lighting
-
 local baseFOV = Camera.FieldOfView
-local maxDistance = 100
+local maxThreatDistance = 20
+local highlightRadius = 300
+
+-- 🔁 Persistent references
+local currentCC, currentMoon
+
+-- 🌌 Apply lighting overrides safely
+local function applyLightingOverrides()
+    local Lighting = game:GetService("Lighting")
+
+    -- Clean up previous overrides
+    if currentCC and currentCC.Parent then currentCC:Destroy() end
+    if currentMoon and currentMoon.Parent then currentMoon:Destroy() end
+
+    -- Reset lighting properties
+    Lighting.ClockTime = 0
+    Lighting.TimeOfDay = "00:00:00"
+    Lighting.GeographicLatitude = 100
+    Lighting.Brightness = 2
+    Lighting.Technology = Enum.Technology.Future
+
+    -- Remove any lingering ThreatVisuals
+    for _, v in ipairs(Lighting:GetChildren()) do
+        if v:IsA("ColorCorrectionEffect") and v.Name == "ThreatVisuals" then
+            v:Destroy()
+        end
+    end
+
+    -- Create new color correction
+    local cc = Instance.new("ColorCorrectionEffect")
+    cc.Name = "ThreatVisuals"
+    cc.Contrast = 0.1
+    cc.Saturation = -0.6
+    cc.Enabled = true
+    cc.Parent = Lighting
+
+    -- Create moon override
+    local moon = Instance.new("Sky")
+    moon.Name = "Moon"
+    moon.MoonTextureId = "rbxassetid://12483779678"
+    moon.SkyboxBk = ""
+    moon.SkyboxDn = ""
+    moon.SkyboxFt = ""
+    moon.SkyboxLf = ""
+    moon.SkyboxRt = ""
+    moon.SkyboxUp = ""
+    moon.Parent = Lighting
+
+    currentCC = cc
+    currentMoon = moon
+end
 
 -- 🔪 Threat calculation
 local function getThreat()
@@ -39,16 +72,63 @@ local function getThreat()
             if dist < closest then closest = dist end
         end
     end
-    return closest <= maxDistance and (1 - closest / maxDistance) or 0
+    return closest <= maxThreatDistance and (1 - closest / maxThreatDistance) or 0
+end
+
+-- 🧍 Highlight nearby players
+local function updateHighlights()
+    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= lp and plr.Character then
+            local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+            local torso = plr.Character:FindFirstChild("UpperTorso") or plr.Character:FindFirstChild("Torso")
+            if hrp and torso then
+                local dist = (hrp.Position - root.Position).Magnitude
+                local existing = hrp:FindFirstChild("Highlight")
+
+                if dist <= highlightRadius then
+                    if not existing then
+                        local hl = Instance.new("Highlight")
+                        hl.Name = "Highlight"
+                        hl.FillTransparency = 0.8
+                        hl.OutlineTransparency = 1
+                        hl.FillColor = torso.Color
+                        hl.Adornee = plr.Character
+                        hl.Parent = hrp
+                    else
+                        existing.FillColor = torso.Color
+                    end
+                elseif existing then
+                    existing:Destroy()
+                end
+            end
+        end
+    end
 end
 
 -- 🌀 Visual update loop
+applyLightingOverrides()
+
 RunService.RenderStepped:Connect(function()
     local threat = getThreat()
 
-    -- Contrast scales from 0.1 to 0.4
-    cc.Contrast = 0.1 + (0.3 * threat)
+    -- Reapply overrides if Lighting was reset
+    if not currentCC or not currentCC.Parent or not currentMoon or not currentMoon.Parent then
+        applyLightingOverrides()
+    end
 
-    -- FOV scales from base to +50%
+    -- Clamp contrast and saturation
+    currentCC.Contrast = math.clamp(0.1 + (0.3 * threat), 0.1, 0.4)
+    currentCC.Saturation = -0.6 -- Fixed value, no dynamic scaling
+
+    -- FOV scaling
     Camera.FieldOfView = baseFOV + (baseFOV * 0.5 * threat)
+
+    -- Moon size scaling
+    currentMoon.MoonAngularSize = 11 + (19 * threat)
+
+    -- Update highlights
+    updateHighlights()
 end)
