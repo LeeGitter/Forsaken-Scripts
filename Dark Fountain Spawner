@@ -1,0 +1,122 @@
+--// Hostile Breach Trigger Script (Dark Precursor + Ground Spawn)
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local root = character:WaitForChild("HumanoidRootPart")
+
+-- Load breach animation
+local anim = Instance.new("Animation")
+anim.AnimationId = "rbxassetid://117339039533356"
+local track = humanoid:LoadAnimation(anim)
+
+-- Movement lock
+local frozen = false
+local originalWalkSpeed = humanoid.WalkSpeed
+local originalJumpPower = humanoid.JumpPower
+
+local function freezeMovement(state)
+    frozen = state
+    humanoid.AutoRotate = not state
+    humanoid.WalkSpeed = state and 0 or originalWalkSpeed
+    humanoid.JumpPower = state and 0 or originalJumpPower
+end
+
+-- Velocity suppression loop
+RunService.RenderStepped:Connect(function()
+    if frozen then
+        root.Velocity = Vector3.zero
+        root.RotVelocity = Vector3.zero
+    end
+end)
+
+-- Animation slowdown trigger
+local function slowAnimationAt(track, triggerTime, slowSpeed)
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if track.TimePosition >= triggerTime then
+            track:AdjustSpeed(slowSpeed)
+            connection:Disconnect()
+        end
+    end)
+end
+
+-- Global darkening effect
+local function darkenMap()
+    Lighting.Brightness = 1
+    Lighting.ClockTime = 0
+    Lighting.FogEnd = 100
+    Lighting.FogColor = Color3.new(0, 0, 0)
+    Lighting.Ambient = Color3.new(0.1, 0.1, 0.1)
+    Lighting.OutdoorAmbient = Color3.new(0.1, 0.1, 0.1)
+end
+
+-- Neon breach pillar logic
+local animationStartPosition = nil
+
+local function spawnNeonPillar()
+    if not animationStartPosition then return end
+
+    local origin = Vector3.new(animationStartPosition.X, 0, animationStartPosition.Z)
+
+    local pillar = Instance.new("Part")
+    pillar.Name = "DarkFountain"
+    pillar.Anchored = true
+    pillar.CanCollide = false
+    pillar.Material = Enum.Material.Neon
+    pillar.Color = Color3.new(1, 1, 1)
+    pillar.Size = Vector3.new(7, 0.1, 7)
+    pillar.Position = origin
+    pillar.Parent = workspace
+
+    local mesh = Instance.new("CylinderMesh")
+    mesh.Parent = pillar
+
+    local light = Instance.new("PointLight")
+    light.Color = Color3.new(1, 1, 1)
+    light.Brightness = 10
+    light.Range = 60
+    light.Shadows = true
+    light.Parent = pillar
+
+    local goalSize = Vector3.new(7, 100, 7)
+    local goalPosition = origin + Vector3.new(0, 50, 0)
+
+    local tweenInfo = TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+    local sizeTween = TweenService:Create(pillar, tweenInfo, {Size = goalSize})
+    local positionTween = TweenService:Create(pillar, tweenInfo, {Position = goalPosition})
+
+    sizeTween:Play()
+    positionTween:Play()
+
+    game:GetService("Debris"):AddItem(pillar, 60)
+end
+
+-- Trigger logic
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed or input.KeyCode ~= Enum.KeyCode.T then return end
+
+    animationStartPosition = root.Position
+
+    freezeMovement(true)
+    track:Play()
+    slowAnimationAt(track, 1.8, 0.01)
+
+    task.delay(3.8, function()
+        freezeMovement(false)
+        track:Stop()
+    end)
+
+    task.delay(45, function() -- 2 seconds before spawn
+        darkenMap()
+    end)
+
+    task.delay(50, function()
+        spawnNeonPillar()
+    end)
+end)
