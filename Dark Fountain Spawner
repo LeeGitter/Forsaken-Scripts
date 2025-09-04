@@ -113,11 +113,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         track:Stop()
     end)
 
-    task.delay(8, function() -- 2 seconds before spawn
+    task.delay(45, function() -- 2 seconds before spawn
         darkenMap()
     end)
 
-    task.delay(10, function()
+    task.delay(50, function()
         spawnNeonPillar()
     end)
 end)
