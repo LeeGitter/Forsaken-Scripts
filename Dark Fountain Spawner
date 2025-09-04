@@ -48,6 +48,7 @@ end
 
 -- Global darkening effect
 local function darkenMap()
+    print("[Darken] Map darkening at 20s")
     Lighting.Brightness = 1
     Lighting.ClockTime = 0
     Lighting.FogEnd = 100
@@ -60,9 +61,14 @@ end
 local animationStartPosition = nil
 
 local function spawnNeonPillar()
-    if not animationStartPosition then return end
+    if not animationStartPosition then
+        warn("[Spawn] animationStartPosition is nil. Aborting spawn.")
+        return
+    end
 
-    local origin = Vector3.new(animationStartPosition.X, 0, animationStartPosition.Z)
+    print("[Spawn] Neon pillar spawning at 35s")
+
+    local origin = Vector3.new(animationStartPosition.X, animationStartPosition.Y - 3, animationStartPosition.Z)
 
     local pillar = Instance.new("Part")
     pillar.Name = "DarkFountain"
@@ -93,9 +99,6 @@ local function spawnNeonPillar()
 
     sizeTween:Play()
     positionTween:Play()
-
-    -- Removed cleanup to make DarkFountain permanent
-    -- game:GetService("Debris"):AddItem(pillar, 60)
 end
 
 -- Trigger logic
@@ -103,6 +106,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed or input.KeyCode ~= Enum.KeyCode.T then return end
 
     animationStartPosition = root.Position
+    print("[Trigger] Breach initiated at:", animationStartPosition)
 
     freezeMovement(true)
     track:Play()
@@ -110,14 +114,10 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
     task.delay(3.8, function()
         freezeMovement(false)
+        track:AdjustSpeed(1)
         track:Stop()
     end)
 
-    task.delay(20, function() -- 2 seconds before spawn
-        darkenMap()
-    end)
-
-    task.delay(35, function()
-        spawnNeonPillar()
-    end)
+    task.delay(20, darkenMap)
+    task.delay(35, spawnNeonPillar)
 end)
