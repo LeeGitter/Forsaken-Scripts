@@ -1,0 +1,106 @@
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+local char = lp.Character or lp.CharacterAdded:Wait()
+local uis = game:GetService("UserInputService")
+local rs = game:GetService("RunService")
+
+-- CONFIG
+local MESH_ID = "rbxassetid://62275962"
+local TEXTURE_ID = "rbxassetid://62276016"
+local HOLD_TIME = 10 -- seconds before fade
+local FADE_TIME = 0.5 -- seconds to fade out
+local SCALE = Vector3.new(0.7, 0.7, 0.7)
+local OFFSET = Vector3.new(0, -1, 0.6) -- drop 1 stud, move back 0.6 studs
+
+-- Utility: Attach to left hand with rotation, scale, and offset
+local function attachToLeftHand(part)
+    local lh = char:FindFirstChild("LeftHand") or char:FindFirstChild("Left Arm")
+    if not lh then return end
+
+    part.Anchored = false
+    part.CanCollide = false
+    part.Size = SCALE
+    part.Parent = workspace
+
+    local rotation = CFrame.Angles(math.rad(90), math.rad(90), 0)
+    part.CFrame = lh.CFrame * CFrame.new(OFFSET) * rotation
+
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = lh
+    weld.Part1 = part
+    weld.Parent = part
+end
+
+-- Utility: Fade out after hold time
+local function fadeOut(part)
+    task.delay(HOLD_TIME, function()
+        local start = tick()
+        local conn
+        conn = rs.RenderStepped:Connect(function()
+            local elapsed = tick() - start
+            if elapsed >= FADE_TIME then
+                conn:Disconnect()
+                part:Destroy()
+            else
+                part.Transparency = elapsed / FADE_TIME
+            end
+        end)
+    end)
+end
+
+-- Trigger: Press T to spawn hostile attachment
+uis.InputBegan:Connect(function(input, gp)
+    if gp or input.KeyCode ~= Enum.KeyCode.T then return end
+
+    local meshPart = Instance.new("MeshPart")
+    meshPart.MeshId = MESH_ID
+    meshPart.TextureID = TEXTURE_ID
+    meshPart.Name = "HostileAttachment"
+    meshPart.Transparency = 0
+
+    attachToLeftHand(meshPart)
+    fadeOut(meshPart)
+end)
+
+-- Utility: Create blackout UI
+local function createBlackout()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "BlackoutUI"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.Parent = lp:WaitForChild("PlayerGui")
+
+    local frame = Instance.new("Frame")
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundTransparency = 0
+    frame.Parent = gui
+
+    return frame, gui
+end
+
+-- Utility: Fade out blackout UI
+local function fadeOutBlackout(frame, gui)
+    local start = tick()
+    local conn
+    conn = rs.RenderStepped:Connect(function()
+        local elapsed = tick() - start
+        if elapsed >= 0.5 then
+            conn:Disconnect()
+            gui:Destroy()
+        else
+            frame.BackgroundTransparency = elapsed / 0.5
+        end
+    end)
+end
+
+-- Trigger: Touching "DarkFountain" triggers blackout
+local DarkFountain = workspace:WaitForChild("DarkFountain")
+DarkFountain.Touched:Connect(function(hit)
+    if not hit:IsDescendantOf(char) then return end
+
+    local frame, gui = createBlackout()
+    task.delay(2, function()
+        fadeOutBlackout(frame, gui)
+    end)
+end)
