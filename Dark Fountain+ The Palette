@@ -8,16 +8,16 @@ local ALMOST_BLACK = Color3.fromRGB(10, 10, 10)
 -- Expanded green detection via HSV
 local function isGreenish(color)
     local h = Color3.toHSV(color)
-    return h >= 0.2 and h <= 0.5 -- Wider range: lime to teal-adjacent
+    return h >= 0.2 and h <= 0.5
 end
 
--- Aggressive brown detection via RGB
+-- Aggressive brown detection (wood tones, muddy reds)
 local function isBrownish(color)
     local r, g, b = color.R, color.G, color.B
-    local warm = r > g and g > b
-    local lowBlue = b < 80
-    local muted = r + g + b < 500
-    local contrast = math.abs(r - g) < 60 and math.abs(g - b) < 80
+    local warm = r > g and g >= b
+    local lowBlue = b < 60
+    local muted = r + g + b < 450
+    local contrast = math.abs(r - g) < 50 and math.abs(g - b) < 60
     return warm and lowBlue and muted and contrast
 end
 
@@ -26,7 +26,7 @@ local function isTan(color)
     local r, g, b = color.R, color.G, color.B
     local light = r > 180 and g > 160 and b > 120
     local warmBias = r > g and g > b
-    local notYellow = g - b < 40 and r - g < 50
+    local notYellow = g < 200 and b < 160 and r - g < 50
     return light and warmBias and notYellow
 end
 
