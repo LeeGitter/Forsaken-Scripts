@@ -113,7 +113,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         track:Stop()
     end)
 
-    task.delay(25, function() -- 2 seconds before spawn
+    task.delay(20, function() -- 2 seconds before spawn
         darkenMap()
     end)
 
