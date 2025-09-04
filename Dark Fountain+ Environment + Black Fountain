@@ -4,15 +4,15 @@ local ws = game:GetService("Workspace")
 local lp = game:GetService("Players").LocalPlayer
 local tweenService = game:GetService("TweenService")
 
--- Breach lighting effects
+-- Brighter breach lighting effects
 local function applyBreachLighting()
     lighting.ClockTime = 0
-    lighting.Brightness = 1.3
-    lighting.Ambient = Color3.fromRGB(70, 60, 100)
-    lighting.OutdoorAmbient = Color3.fromRGB(50, 40, 80)
-    lighting.FogColor = Color3.fromRGB(90, 70, 140)
+    lighting.Brightness = 1.8 -- brighter than before
+    lighting.Ambient = Color3.fromRGB(90, 80, 140)
+    lighting.OutdoorAmbient = Color3.fromRGB(70, 60, 120)
+    lighting.FogColor = Color3.fromRGB(100, 90, 160)
     lighting.FogStart = 0
-    lighting.FogEnd = 250
+    lighting.FogEnd = 300
 
     for _, v in ipairs(lighting:GetChildren()) do
         if v:IsA("Sky") then v:Destroy() end
@@ -21,10 +21,10 @@ local function applyBreachLighting()
     if not lighting:FindFirstChild("BreachColor") then
         local cc = Instance.new("ColorCorrectionEffect")
         cc.Name = "BreachColor"
-        cc.TintColor = Color3.fromRGB(110, 90, 180)
-        cc.Contrast = 0.3
-        cc.Saturation = -0.2
-        cc.Brightness = -0.1
+        cc.TintColor = Color3.fromRGB(130, 110, 200)
+        cc.Contrast = 0.25
+        cc.Saturation = -0.1
+        cc.Brightness = 0.05 -- slight lift
         cc.Enabled = true
         cc.Parent = lighting
     end
@@ -32,9 +32,9 @@ local function applyBreachLighting()
     if not lighting:FindFirstChild("BreachBloom") then
         local bloom = Instance.new("BloomEffect")
         bloom.Name = "BreachBloom"
-        bloom.Intensity = 0.5
-        bloom.Size = 40
-        bloom.Threshold = 0.85
+        bloom.Intensity = 0.6
+        bloom.Size = 48
+        bloom.Threshold = 0.8
         bloom.Enabled = true
         bloom.Parent = lighting
     end
@@ -42,12 +42,12 @@ local function applyBreachLighting()
     if not lighting:FindFirstChild("BreachAtmosphere") then
         local atm = Instance.new("Atmosphere")
         atm.Name = "BreachAtmosphere"
-        atm.Density = 0.45
-        atm.Offset = 0.25
-        atm.Color = Color3.fromRGB(100, 80, 160)
-        atm.Decay = Color3.fromRGB(60, 40, 100)
-        atm.Glare = 0.1
-        atm.Haze = 2.2
+        atm.Density = 0.5
+        atm.Offset = 0.3
+        atm.Color = Color3.fromRGB(120, 100, 180)
+        atm.Decay = Color3.fromRGB(80, 60, 140)
+        atm.Glare = 0.2
+        atm.Haze = 2.5
         atm.Enabled = true
         atm.Parent = lighting
     end
@@ -64,33 +64,6 @@ local function dashForward()
         Position = goalPos
     })
     tween:Play()
-end
-
--- Screen blackout (2s hold + 1s fade)
-local function blackoutScreen()
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "Blackout"
-    gui.ResetOnSpawn = false
-    gui.IgnoreGuiInset = true
-    gui.Parent = lp:WaitForChild("PlayerGui")
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.Position = UDim2.new(0, 0, 0, 0)
-    frame.BackgroundColor3 = Color3.new(0, 0, 0)
-    frame.BackgroundTransparency = 0
-    frame.BorderSizePixel = 0
-    frame.Parent = gui
-
-    task.wait(2)
-
-    local fadeTween = tweenService:Create(frame, TweenInfo.new(1), {
-        BackgroundTransparency = 1
-    })
-    fadeTween:Play()
-    fadeTween.Completed:Connect(function()
-        gui:Destroy()
-    end)
 end
 
 -- Breach trigger on touch
@@ -111,13 +84,12 @@ local function setupTouch()
 
             -- Spawn light
             local light = Instance.new("PointLight", darkfountain)
-            light.Color = Color3.fromRGB(120, 100, 180)
-            light.Range = 20
-            light.Brightness = 3
+            light.Color = Color3.fromRGB(140, 120, 200)
+            light.Range = 25
+            light.Brightness = 4
 
             -- Execute breach sequence
             applyBreachLighting()
-            blackoutScreen()
             dashForward()
         end
     end)
