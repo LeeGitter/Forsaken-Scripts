@@ -1,0 +1,47 @@
+local fountain = workspace:FindFirstChild("DarkFountain")
+if not fountain then return end
+
+-- Override tones
+local INDIGO = Color3.fromRGB(75, 0, 130)
+local ALMOST_BLACK = Color3.fromRGB(10, 10, 10)
+
+-- Green detection via HSV
+local function isGreenish(color)
+    local h = Color3.toHSV(color)
+    return h >= 0.25 and h <= 0.45
+end
+
+-- Aggressive brown detection via RGB
+local function isBrownish(color)
+    local r, g, b = color.R, color.G, color.B
+    local warm = r > g and g > b
+    local lowBlue = b < 80
+    local muted = r + g + b < 500
+    local contrast = math.abs(r - g) < 60 and math.abs(g - b) < 80
+    return warm and lowBlue and muted and contrast
+end
+
+-- Tan detection (already working well)
+local function isTan(color)
+    local r, g, b = color.R, color.G, color.B
+    return r > 180 and g > 160 and b > 120 and r - b < 100 and g - b < 60
+end
+
+-- Breach effect
+local function breachIndigo()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local col = obj.Color
+            if isGreenish(col) then
+                obj.Color = INDIGO
+            elseif isBrownish(col) or isTan(col) then
+                obj.Color = ALMOST_BLACK
+            end
+        end
+    end
+end
+
+-- Touch trigger
+fountain.Touched:Connect(function()
+    breachIndigo()
+end)
