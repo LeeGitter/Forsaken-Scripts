@@ -4,7 +4,7 @@ local targetPath = workspace:WaitForChild("Players"):WaitForChild("Survivors"):W
 
 -- Validate identity
 if targetPath ~= game.Players.LocalPlayer.Character then return end
-if targetPath.Name ~= "RetroBuilderman" then return end
+if targetPath:GetAttribute("SkinName") ~= "RetroBuilderman" then return end
 
 -- Remove cosmetic parts
 for _, partName in {"Shirt Graphic", "Hat"} do
