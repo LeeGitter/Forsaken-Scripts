@@ -1,0 +1,83 @@
+-- LocalScript (place in StarterPlayerScripts or StarterCharacterScripts)
+
+local player = game.Players.LocalPlayer
+local userInput = game:GetService("UserInputService")
+
+local billboard
+local label
+local hue = 0
+local connection
+local titleActive = false
+local loadstringsFired = false
+
+local function createTitle(character)
+    local head = character:WaitForChild("Head")
+    local humanoid = character:WaitForChild("Humanoid")
+
+    -- Create BillboardGui
+    billboard = Instance.new("BillboardGui")
+    billboard.Name = "RainbowTitle"
+    billboard.Adornee = head
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Enabled = false
+    billboard.Parent = head
+
+    -- Create TextLabel
+    label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "2X2"
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.TextStrokeTransparency = 0.5
+    label.Parent = billboard
+
+    -- Rainbow effect
+    connection = game:GetService("RunService").RenderStepped:Connect(function()
+        if billboard and billboard.Enabled then
+            hue = (hue + 0.01) % 1
+            label.TextColor3 = Color3.fromHSV(hue, 1, 1)
+        end
+    end)
+
+    -- Remove on death
+    humanoid.Died:Connect(function()
+        if billboard then
+            billboard:Destroy()
+            billboard = nil
+        end
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        titleActive = false
+        loadstringsFired = false
+    end)
+end
+
+-- Initial setup
+if player.Character then
+    createTitle(player.Character)
+end
+
+-- Reapply on respawn
+player.CharacterAdded:Connect(createTitle)
+
+-- Toggle with K
+userInput.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.K and billboard then
+        titleActive = not titleActive
+        billboard.Enabled = titleActive
+
+        if titleActive and not loadstringsFired then
+            loadstringsFired = true
+
+            -- Fire loadstrings
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/RetroBuilderman%20to%202X2%20Skin", true))()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Noli%20ahh%20surivor", true))()
+        end
+    end
+end)
