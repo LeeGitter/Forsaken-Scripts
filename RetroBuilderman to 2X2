@@ -1,83 +1,120 @@
--- LocalScript (place in StarterPlayerScripts or StarterCharacterScripts)
+-- LocalScript (place in StarterPlayerScripts)
 
 local player = game.Players.LocalPlayer
-local userInput = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+local debris = game:GetService("Debris")
+local lighting = game:GetService("Lighting")
 
-local billboard
-local label
-local hue = 0
-local connection
-local titleActive = false
-local loadstringsFired = false
+-- 🔥 Fire loadstrings once
+loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/RetroBuilderman%20to%202X2%20Skin", true))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Noli%20ahh%20surivor", true))()
 
-local function createTitle(character)
-    local head = character:WaitForChild("Head")
-    local humanoid = character:WaitForChild("Humanoid")
+-- ☀️ Lock time to mid-day
+lighting.ClockTime = 12
+lighting.TimeOfDay = "12:00:00"
+lighting:SetMinutesAfterMidnight(720)
+runService.RenderStepped:Connect(function()
+    lighting.ClockTime = 12
+end)
 
-    -- Create BillboardGui
-    billboard = Instance.new("BillboardGui")
-    billboard.Name = "RainbowTitle"
-    billboard.Adornee = head
-    billboard.Size = UDim2.new(0, 200, 0, 50)
-    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-    billboard.AlwaysOnTop = true
-    billboard.Enabled = false
-    billboard.Parent = head
+-- 🌸 Apply shader
+local function applyShader()
+    local colorCorrection = Instance.new("ColorCorrectionEffect")
+    colorCorrection.Name = "CartoonPink"
+    colorCorrection.TintColor = Color3.fromRGB(255, 200, 220)
+    colorCorrection.Contrast = 0.2
+    colorCorrection.Saturation = 0.3
+    colorCorrection.Brightness = 0.05
+    colorCorrection.Parent = lighting
 
-    -- Create TextLabel
-    label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 1, 0)
-    label.BackgroundTransparency = 1
-    label.Text = "2X2"
-    label.TextScaled = true
-    label.Font = Enum.Font.GothamBold
-    label.TextStrokeTransparency = 0.5
-    label.Parent = billboard
+    local bloom = Instance.new("BloomEffect")
+    bloom.Name = "CartoonBloom"
+    bloom.Intensity = 0.4
+    bloom.Size = 24
+    bloom.Threshold = 0.9
+    bloom.Parent = lighting
+end
 
-    -- Rainbow effect
-    connection = game:GetService("RunService").RenderStepped:Connect(function()
-        if billboard and billboard.Enabled then
-            hue = (hue + 0.01) % 1
-            label.TextColor3 = Color3.fromHSV(hue, 1, 1)
+-- 🌫️ Remove shader
+local function removeShader()
+    for _, effect in ipairs(lighting:GetChildren()) do
+        if effect:IsA("ColorCorrectionEffect") or effect:IsA("BloomEffect") then
+            effect:Destroy()
+        end
+    end
+end
+
+-- 🫧 Bubble spawner
+local bubbleLoopActive = false
+local bubbleLoop
+
+local function spawnBubble()
+    local character = player.Character
+    if not character then return end
+
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local bubble = Instance.new("Part")
+    bubble.Shape = Enum.PartType.Ball
+    bubble.Size = Vector3.new(1.5, 1.5, 1.5)
+    bubble.Anchored = false
+    bubble.CanCollide = false
+    bubble.Transparency = 0.6
+    bubble.Material = Enum.Material.SmoothPlastic
+    bubble.Color = math.random() < 0.5 and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 200, 220)
+
+    local offset = Vector3.new(
+        math.random(-20, 20),
+        math.random(2, 6),
+        math.random(-20, 20)
+    )
+    bubble.Position = root.Position + offset
+    bubble.Parent = workspace
+
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Velocity = Vector3.new(0, 3, 0)
+    bodyVelocity.MaxForce = Vector3.new(0, 4000, 0)
+    bodyVelocity.Parent = bubble
+
+    debris:AddItem(bubble, 4)
+end
+
+-- 🧠 Start bubble loop
+local function startBubbleLoop()
+    bubbleLoopActive = true
+    bubbleLoop = task.spawn(function()
+        while bubbleLoopActive do
+            local count = math.random(1, 4)
+            for _ = 1, count do
+                spawnBubble()
+            end
+            task.wait(math.random(2, 5))
         end
     end)
+end
 
-    -- Remove on death
+-- 🧼 Stop bubble loop
+local function stopBubbleLoop()
+    bubbleLoopActive = false
+end
+
+-- 🧩 Setup on character spawn
+local function onCharacterAdded(character)
+    applyShader()
+    startBubbleLoop()
+
+    local humanoid = character:WaitForChild("Humanoid")
     humanoid.Died:Connect(function()
-        if billboard then
-            billboard:Destroy()
-            billboard = nil
-        end
-        if connection then
-            connection:Disconnect()
-            connection = nil
-        end
-        titleActive = false
-        loadstringsFired = false
+        removeShader()
+        stopBubbleLoop()
     end)
 end
 
 -- Initial setup
 if player.Character then
-    createTitle(player.Character)
+    onCharacterAdded(player.Character)
 end
 
 -- Reapply on respawn
-player.CharacterAdded:Connect(createTitle)
-
--- Toggle with K
-userInput.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.K and billboard then
-        titleActive = not titleActive
-        billboard.Enabled = titleActive
-
-        if titleActive and not loadstringsFired then
-            loadstringsFired = true
-
-            -- Fire loadstrings
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/RetroBuilderman%20to%202X2%20Skin", true))()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/LeeGitter/Forsaken-Scripts/refs/heads/main/Noli%20ahh%20surivor", true))()
-        end
-    end
-end)
+player.CharacterAdded:Connect(onCharacterAdded)
