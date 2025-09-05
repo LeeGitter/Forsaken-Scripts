@@ -1,0 +1,79 @@
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local targetPath = workspace:WaitForChild("Players"):WaitForChild("Survivors"):WaitForChild("Builderman")
+
+-- Validate identity
+if targetPath ~= game.Players.LocalPlayer.Character then return end
+if targetPath.Name ~= "RetroBuilderman" then return end
+
+-- Remove cosmetic parts
+for _, partName in {"Shirt Graphic", "Hat"} do
+    local part = targetPath:FindFirstChild(partName)
+    if part then part:Destroy() end
+end
+
+-- Add new ShirtGraphic
+local newGraphic = Instance.new("ShirtGraphic")
+newGraphic.Name = "Shirt Graphic"
+newGraphic.Graphic = "rbxassetid://14285088746"
+newGraphic.Parent = targetPath
+
+-- Define skin tone map
+local skinMap = {
+    ["Right Leg"] = Color3.fromRGB(255, 176, 0),
+    ["Left Leg"]  = Color3.fromRGB(255, 255, 255),
+    ["Torso"]     = Color3.fromRGB(255, 0, 0),
+    ["Right Arm"] = Color3.fromRGB(31, 128, 29),
+    ["Left Arm"]  = Color3.fromRGB(33, 84, 185),
+    ["Head"]      = Color3.fromRGB(27, 42, 53)
+}
+
+-- Spam skin tone changes
+task.spawn(function()
+    while true do
+        for limbName, color in pairs(skinMap) do
+            local limb = targetPath:FindFirstChild(limbName)
+            if limb and limb:IsA("BasePart") then
+                limb.Color = color
+            end
+        end
+        task.wait(0.1)
+    end
+end)
+
+-- Force wrench visibility
+task.spawn(function()
+    while true do
+        local wrench = targetPath:FindFirstChild("Wrench")
+        if wrench and wrench:IsA("BasePart") then
+            wrench.Transparency = 0
+        end
+        task.wait(0.05)
+    end
+end)
+
+-- Mythic light pulse
+local light = Instance.new("PointLight")
+light.Brightness = 2
+light.Range = 16
+light.Color = Color3.new(1, 1, 1)
+light.Parent = targetPath:FindFirstChild("Torso") or targetPath:FindFirstChildWhichIsA("BasePart")
+
+local pulseColors = {
+    Color3.new(1, 1, 1), -- white
+    Color3.new(1, 1, 0), -- yellow
+    Color3.new(1, 1, 1), -- white
+    Color3.new(1, 0, 0), -- red
+    Color3.new(0, 0, 1), -- blue
+    Color3.new(0, 1, 0)  -- green
+}
+
+task.spawn(function()
+    while true do
+        for _, color in ipairs(pulseColors) do
+            local tween = TweenService:Create(light, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Color = color})
+            tween:Play()
+            tween.Completed:Wait()
+        end
+    end
+end)
