@@ -1,0 +1,94 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local alive = true
+humanoid.Died:Connect(function()
+    alive = false
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed or not alive or input.KeyCode ~= Enum.KeyCode.T then return end
+
+    -- Play animation
+    local anim = Instance.new("Animation")
+    anim.AnimationId = "rbxassetid://140042539182927"
+    local track = humanoid:LoadAnimation(anim)
+    track:Play()
+
+    -- Stop animation at 2.2 seconds
+    task.delay(2.2, function()
+        track:Stop()
+    end)
+
+    -- Rainbow highlight at 1.7 seconds
+    task.delay(1.7, function()
+        local killers = Workspace:WaitForChild("Players"):WaitForChild("Killers")
+        for _, model in pairs(killers:GetChildren()) do
+            if model:IsA("Model") then
+                local highlight = Instance.new("Highlight")
+                highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                highlight.FillTransparency = 0.3
+                highlight.OutlineTransparency = 0
+                highlight.Parent = model
+
+                local rainbow = {
+                    Color3.fromRGB(255, 0, 0),
+                    Color3.fromRGB(255, 127, 0),
+                    Color3.fromRGB(255, 255, 0),
+                    Color3.fromRGB(0, 255, 0),
+                    Color3.fromRGB(0, 0, 255),
+                    Color3.fromRGB(75, 0, 130),
+                    Color3.fromRGB(148, 0, 211)
+                }
+
+                task.spawn(function()
+                    for i = 1, 5 * #rainbow do
+                        highlight.FillColor = rainbow[(i - 1) % #rainbow + 1]
+                        task.wait(0.1)
+                    end
+
+                    local tween = TweenService:Create(highlight, TweenInfo.new(0.5), {
+                        FillTransparency = 1,
+                        OutlineTransparency = 1
+                    })
+                    tween:Play()
+                    tween.Completed:Wait()
+                    highlight:Destroy()
+                end)
+            end
+        end
+    end)
+
+    -- Spoof speed at 2.2 seconds, only while holding Shift
+    task.delay(2.2, function()
+        local spoofSpeed = 25
+        local duration = 10
+        local startTime = tick()
+
+        local connection
+        connection = RunService.RenderStepped:Connect(function()
+            if not alive or tick() - startTime >= duration then
+                connection:Disconnect()
+                return
+            end
+
+            local shiftHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
+            if shiftHeld then
+                local moveDir = humanoid.MoveDirection
+                local horizontal = Vector3.new(moveDir.X, 0, moveDir.Z).Unit
+                if horizontal.Magnitude > 0 then
+                    hrp.Velocity = Vector3.new(horizontal.X * spoofSpeed, hrp.Velocity.Y, horizontal.Z * spoofSpeed)
+                end
+            end
+        end)
+    end)
+end)
